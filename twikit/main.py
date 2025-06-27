@@ -5,6 +5,9 @@ import os
 from twikit import Client
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
+from models.session_model import CookieItem, CookieWrapper, SessionModel
+from pydantic import BaseModel
+from fastapi import Body
 
 
 load_dotenv()
@@ -39,6 +42,7 @@ class LoginRequest(BaseModel):
     password: str
 
 
+
 @app.post("/login")
 async def login_user(body: LoginRequest):
     try:
@@ -52,7 +56,7 @@ async def login_user(body: LoginRequest):
             cookies_file=cookie_path
         )
 
-        # Extract cookies and convert them to desired structure
+        # Extract cookies and format
         structured_cookies = []
         for cookie in client.cookie_jar:
             structured_cookies.append({
@@ -64,11 +68,27 @@ async def login_user(body: LoginRequest):
                 "httpOnly": cookie.get("httpOnly", False)
             })
 
-        return { "cookies": structured_cookies }
+        # Wrap cookies for the model
+        wrapped_cookies = { "cookies": structured_cookies }
+
+        # Save to MongoDB
+        await db.sessions.update_one(
+            {"auth_info_1": body.auth_info_1},
+            {"$set": {
+                "auth_info_1": body.auth_info_1,
+                "auth_info_2": body.auth_info_2,
+                "cookies": wrapped_cookies
+            }},
+            upsert=True
+        )
+
+        return {
+            "message": "Login successful, cookies stored in DB.",
+            "cookies": wrapped_cookies
+        }
 
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Login failed: {str(e)}")
-
 
 
 
@@ -138,3 +158,29 @@ async def get_feed(data: CookieList):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch feed: {str(e)}")
+
+
+class AuthMatchRequest(BaseModel):
+    auth_info_1: str
+    auth_info_2: str
+
+@app.post("/match-sessions")
+async def match_sessions(body: AuthMatchRequest = Body(...)):
+    try:
+        matches_cursor = db.sessions.find({
+            "auth_info_1": body.auth_info_1,
+            "auth_info_2": body.auth_info_2
+        })
+
+        matches = []
+        async for doc in matches_cursor:
+            matches.append({
+                "auth_info_1": doc["auth_info_1"],
+                "auth_info_2": doc["auth_info_2"],
+                "cookies": doc.get("cookies", {})
+            })
+
+        return {"matches": matches}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
