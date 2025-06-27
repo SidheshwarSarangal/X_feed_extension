@@ -1,0 +1,16 @@
+@app.post("/login")
+async def login_user(body: LoginRequest):
+    try:
+        client = Client("en-US")
+        cookie_path = f"{SESSIONS_DIR}/{body.auth_info_1}.json"
+
+        await client.login(
+            auth_info_1=body.auth_info_1,
+            auth_info_2=body.auth_info_2,
+            password=body.password,
+            cookies_file=cookie_path
+        )
+
+        return {"message": "Login successful and session saved."}
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Login failed: {str(e)}")

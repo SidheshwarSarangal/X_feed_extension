@@ -1,0 +1,90 @@
+[
+  {
+    "domain": ".twitter.com",
+    "name": "guest_id_marketing",
+    "value": "v1%3A175102346581187599",
+    "path": "/",
+    "secure": true,
+    "httpOnly": false
+  },
+  {
+    "domain": ".twitter.com",
+    "name": "guest_id_ads",
+    "value": "v1%3A175102346581187599",
+    "path": "/",
+    "secure": true,
+    "httpOnly": false
+  },
+  {
+    "domain": ".twitter.com",
+    "name": "personalization_id",
+    "value": "\"v1_4fzYQDMwjfsB8X/+9fUeJg==\"",
+    "path": "/",
+    "secure": true,
+    "httpOnly": false
+  },
+  {
+    "domain": ".twitter.com",
+    "name": "guest_id",
+    "value": "v1%3A175102346581187599",
+    "path": "/",
+    "secure": true,
+    "httpOnly": false
+  },
+  {
+    "domain": ".twitter.com",
+    "name": "__cf_bm",
+    "value": "jdW5pfQ8qzt4L3doCqYMBsQK9f9QXwgZ72DpmwdtJTI-1751023467-1.0.1.1-nDHuQjAzsFJaQcUXG26Wo.cvjsIQ5vQU4x2c_lU6P5E.3ZR6tJtf8J5exmE.68ad5jlJXZnQydM9nK.nAS0Z1_dwF9ibzHsrb7wsNpj8Uks",
+    "path": "/",
+    "secure": true,
+    "httpOnly": true
+  },
+  {
+    "domain": ".twitter.com",
+    "name": "att",
+    "value": "1-7f3kqIKqRrzmLioZNVGej9eakbkG6N5Pa30F6lZ3",
+    "path": "/",
+    "secure": true,
+    "httpOnly": false
+  },
+  {
+    "domain": ".twitter.com",
+    "name": "_twitter_sess",
+    "value": "BAh7CSIKZmxhc2hJQzonQWN0aW9uQ29udHJvbGxlcjo6Rmxhc2g6OkZsYXNo%250ASGFzaHsABjoKQHVzZWR7ADoPY3JlYXRlZF9hdGwrCEq5IbGXAToMY3NyZl9p%250AZCIlYTU1N2NlZWNhMTdhNmEwZDRkN2VmZThmNDgzOTgwYjQ6B2lkIiUyOGIx%250AMGM2OTBjMjA2NjUyNGVmOTc4NzMzNTdjMGJmZg%253D%253D--c45409b6c47ed8fe8e3f19a403b5a9d64df33d5d",
+    "path": "/",
+    "secure": true,
+    "httpOnly": true
+  },
+  {
+    "domain": ".twitter.com",
+    "name": "kdt",
+    "value": "fm2EsR4Xz4MkhSnJWIaeXJiSxiX2Ihwcmpe7P9S3",
+    "path": "/",
+    "secure": true,
+    "httpOnly": false
+  },
+  {
+    "domain": ".twitter.com",
+    "name": "twid",
+    "value": "\"u=1938132382479224834\"",
+    "path": "/",
+    "secure": true,
+    "httpOnly": false
+  },
+  {
+    "domain": ".twitter.com",
+    "name": "ct0",
+    "value": "570c665abcc2419268db42e6b8b1feeb",
+    "path": "/",
+    "secure": true,
+    "httpOnly": true
+  },
+  {
+    "domain": ".twitter.com",
+    "name": "auth_token",
+    "value": "2b4e6be5503081b5a9df2e0734ff0db3a05e19c6",
+    "path": "/",
+    "secure": true,
+    "httpOnly": true
+  }
+]

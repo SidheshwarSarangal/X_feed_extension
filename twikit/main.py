@@ -1,41 +1,76 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from twikit import Client
+from typing import List, Optional
 import os
-import pickle
+from twikit import Client
 
 app = FastAPI()
 SESSIONS_DIR = "./sessions"
 os.makedirs(SESSIONS_DIR, exist_ok=True)
 
-class LoginRequest(BaseModel):
-    username: str
-    password: str
+class CookieItem(BaseModel):
+    domain: str
+    name: str
+    value: str
+    path: str
+    secure: bool
+    httpOnly: bool
 
-@app.post("/login")
-def login_user(body: LoginRequest):
+class CookieList(BaseModel):
+    cookies: List[CookieItem]
+
+def get_media_url(media) -> Optional[str]:
+    """
+    Get the best media URL from a twikit Media object.
+    """
     try:
-        client = Client()
-        client.login(body.username, body.password)
+        if media.type == "photo":
+            # For photos, return full_url directly
+            return media.full_url
+        elif media.type in ("video", "animated_gif"):
+            video_info = media.video_info or {}
+            variants = video_info.get("variants", [])
+            if variants:
+                # Pick variant with highest bitrate (best quality)
+                variants = sorted(variants, key=lambda v: v.get("bitrate", 0), reverse=True)
+                return variants[0].get("url")
+    except Exception:
+        # Fail silently and return None if any unexpected structure
+        return None
+    return None
 
-        with open(f"{SESSIONS_DIR}/{body.username}.pkl", "wb") as f:
-            pickle.dump(client, f)
-
-        return {"message": "Login successful and session saved."}
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Login failed: {str(e)}")
-
-@app.get("/get-feed")
-def get_feed(username: str = Query(...)):
+@app.post("/get-feed")
+async def get_feed(data: CookieList):
     try:
-        session_path = f"{SESSIONS_DIR}/{username}.pkl"
-        if not os.path.exists(session_path):
-            raise HTTPException(status_code=404, detail="Session not found")
+        client = Client("en-US")
 
-        with open(session_path, "rb") as f:
-            client = pickle.load(f)
+        # Convert list of cookies to dict for twikit client
+        cookie_dict = {c.name: c.value for c in data.cookies}
+        client.set_cookies(cookie_dict)
 
-        home_tweets = client.get_home_timeline(limit=10)
-        return [{"text": t.text, "created_at": str(t.created_at)} for t in home_tweets]
+        tweets = await client.get_timeline(count=10)
+
+        result = []
+        for tweet in tweets:
+            media_urls = []
+            if tweet.media:
+                for m in tweet.media:
+                    url = get_media_url(m)
+                    if url:
+                        media_urls.append(url)
+
+            result.append({
+                "author": tweet.user.name,
+                "handle": tweet.user.screen_name,
+                "text": tweet.text,
+                "created_at": str(tweet.created_at),
+                "likes": tweet.favorite_count,
+                "retweets": tweet.retweet_count,
+                "replies": tweet.reply_count,
+                "media": media_urls
+            })
+
+        return result
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch feed: {str(e)}")
