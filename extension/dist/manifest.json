@@ -1,24 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "X Feed Viewer",
+  "name": "X Feed Extension",
   "version": "1.0",
-  "description": "View your friend's X home feed.",
   "action": {
     "default_popup": "main.html",
-    "default_icon": {
-      "16": "icon.png",
-      "48": "icon.png",
-      "128": "icon.png"
-    }
+    "default_icon": "icon.png"
   },
-  "permissions": [],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
-    }
-  ]
+  "permissions": ["storage"],
+  "host_permissions": ["<all_urls>"]
 }

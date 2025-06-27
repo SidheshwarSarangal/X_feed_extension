@@ -7,42 +7,43 @@ module.exports = {
   entry: {
     background: "./src/background.js",
     content: "./src/content.js",
-    main: "./src/main.js", // optional if main.js is used in HTML
+    main: "./src/main.js",
   },
   output: {
     filename: "[name].js",
     path: path.resolve(__dirname, "dist"),
     clean: true,
   },
-  plugins: [
-    new HtmlWebpackPlugin({
-      filename: "main.html", // emits to dist/main.html
-      template: "./src/main.html",
-      chunks: ["main"], // optional, depends if main.js is included
-    }),
-    new HtmlWebpackPlugin({
-      filename: "allow-access.html",
-      template: "./src/allow-access.html",
-      chunks: [],
-    }),
-    new HtmlWebpackPlugin({
-      filename: "search-feed.html",
-      template: "./src/search-feed.html",
-      chunks: [],
-    }),
-    new CopyWebpackPlugin({
-      patterns: [
-        { from: "public/manifest.json", to: "." },
-        { from: "public/icon.png", to: "." }, // ⚠️ fix your earlier error
-      ],
-    }),
-  ],
   module: {
     rules: [
       {
         test: /\.css$/i,
         use: ["style-loader", "css-loader"],
       },
+      {
+        test: /\.js$/i,
+        exclude: /node_modules/,
+        use: {
+          loader: "babel-loader",
+          options: {
+            presets: ["@babel/preset-env"],
+          },
+        },
+      },
     ],
   },
+  plugins: [
+    new HtmlWebpackPlugin({
+      filename: "main.html",
+      template: "./src/main.html",
+      chunks: ["main"],
+    }),
+    new CopyWebpackPlugin({
+      patterns: [
+        { from: "public/manifest.json", to: "." },
+        { from: "public/icon.png", to: "." },
+        { from: "src/main.css", to: "." }, // ✅ this line
+      ],
+    }),
+  ],
 };
