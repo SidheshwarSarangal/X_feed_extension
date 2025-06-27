@@ -1,10 +1,10 @@
-// backend/server.js
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 require("dotenv").config();
+const puppeteer = require('puppeteer');
 
-//const feedRoutes = require("./routes/feedRoutes");
+const feedRoutes = require("./routes/feedRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,22 +13,23 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Routes
-//app.use("/api", feedRoutes);
-
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log("✅ Connected to MongoDB");
-
-  // Start server only after DB is connected
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running at http://localhost:${PORT}`);
-  });
-})
-.catch((err) => {
-  console.error("❌ MongoDB connection error:", err.message);
+// ✅ Test route FIRST (before other routes)
+app.get("/test", (req, res) => {
+  res.json({ message: "✅ Server and routing working!" });
 });
+
+// Routes - put this AFTER the test route
+app.use("/", feedRoutes);
+
+
+// MongoDB Connection + Server Start
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log("✅ Connected to MongoDB");
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running at http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err.message);
+  });

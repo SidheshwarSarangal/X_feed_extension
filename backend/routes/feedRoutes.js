@@ -1,8 +1,8 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const { registerFeed, getFeed } = require("../controllers/feedController");
+const { loginUser, getFeed } = require('../controllers/feedController');
 
-router.post("/register-feed", registerFeed);    // POST for token storage
-router.get("/get-feed", getFeed);              // GET for feed retrieval
+router.post('/login', loginUser);          // Login and store cookies
+router.get('/feed/:username', getFeed);    // Retrieve user's feed using saved session
 
 module.exports = router;
