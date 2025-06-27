@@ -1,22 +1,48 @@
-const path = require('path')
-const CopyPlugin = require('copy-webpack-plugin')
+const path = require("path");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 
 module.exports = {
-  mode: 'production',
+  mode: "production",
   entry: {
-    content: './src/content.js',
-    background: './src/background.js',
-    popup: './src/popup.js'
+    background: "./src/background.js",
+    content: "./src/content.js",
+    main: "./src/main.js", // optional if main.js is used in HTML
   },
   output: {
-    path: path.resolve(__dirname, 'dist'),
-    filename: '[name].js'
+    filename: "[name].js",
+    path: path.resolve(__dirname, "dist"),
+    clean: true,
   },
   plugins: [
-    new CopyPlugin({
+    new HtmlWebpackPlugin({
+      filename: "main.html", // emits to dist/main.html
+      template: "./src/main.html",
+      chunks: ["main"], // optional, depends if main.js is included
+    }),
+    new HtmlWebpackPlugin({
+      filename: "allow-access.html",
+      template: "./src/allow-access.html",
+      chunks: [],
+    }),
+    new HtmlWebpackPlugin({
+      filename: "search-feed.html",
+      template: "./src/search-feed.html",
+      chunks: [],
+    }),
+    new CopyWebpackPlugin({
       patterns: [
-        { from: 'public' } // copies manifest.json and popup.html
-      ]
-    })
-  ]
-}
+        { from: "public/manifest.json", to: "." },
+        { from: "public/icon.png", to: "." }, // ⚠️ fix your earlier error
+      ],
+    }),
+  ],
+  module: {
+    rules: [
+      {
+        test: /\.css$/i,
+        use: ["style-loader", "css-loader"],
+      },
+    ],
+  },
+};
