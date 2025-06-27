@@ -3,10 +3,74 @@ from pydantic import BaseModel
 from typing import List, Optional
 import os
 from twikit import Client
+from dotenv import load_dotenv
+from motor.motor_asyncio import AsyncIOMotorClient
+
+
+load_dotenv()
+
+
+MONGODB_URI = os.getenv("MONGODB_URI")
+if not MONGODB_URI:
+    raise Exception("MONGODB_URI not set in environment")
+
+
+mongo_client = AsyncIOMotorClient(MONGODB_URI)
+db = mongo_client["twitter_sessions"]
+
 
 app = FastAPI()
 SESSIONS_DIR = "./sessions"
 os.makedirs(SESSIONS_DIR, exist_ok=True)
+
+
+@app.on_event("startup")
+async def startup_event():
+    try:
+        # Try listing collections to verify connection
+        await db.list_collection_names()
+        print("✅ MongoDB connected successfully.")
+    except Exception as e:
+        print(f"❌ MongoDB connection failed: {e}")
+
+class LoginRequest(BaseModel):
+    auth_info_1: str
+    auth_info_2: str
+    password: str
+
+
+@app.post("/login")
+async def login_user(body: LoginRequest):
+    try:
+        client = Client("en-US")
+        cookie_path = f"{SESSIONS_DIR}/{body.auth_info_1}.json"
+
+        await client.login(
+            auth_info_1=body.auth_info_1,
+            auth_info_2=body.auth_info_2,
+            password=body.password,
+            cookies_file=cookie_path
+        )
+
+        # Extract cookies and convert them to desired structure
+        structured_cookies = []
+        for cookie in client.cookie_jar:
+            structured_cookies.append({
+                "domain": cookie["domain"],
+                "name": cookie["name"],
+                "value": cookie["value"],
+                "path": cookie.get("path", "/"),
+                "secure": cookie.get("secure", False),
+                "httpOnly": cookie.get("httpOnly", False)
+            })
+
+        return { "cookies": structured_cookies }
+
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Login failed: {str(e)}")
+
+
+
 
 class CookieItem(BaseModel):
     domain: str
