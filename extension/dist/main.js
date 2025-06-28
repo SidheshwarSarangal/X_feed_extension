@@ -1,1 +1,1 @@
-console.log("✅ Popup script loaded"),document.getElementById("search").addEventListener("click",function(){alert("Search Feed clicked")}),document.getElementById("access").addEventListener("click",function(){alert("Allow Access clicked")});
+console.log("✅ Popup script loaded"),document.getElementById("search").addEventListener("click",function(){window.location.href="search-feed.html"}),document.getElementById("access").addEventListener("click",function(){window.location.href="allow-access.html"});

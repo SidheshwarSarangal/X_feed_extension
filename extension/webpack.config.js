@@ -8,6 +8,8 @@ module.exports = {
     background: "./src/background.js",
     content: "./src/content.js",
     main: "./src/main.js",
+    "allow-access": "./src/allow-access.js",
+    "search-feed": "./src/search-feed.js",
   },
   output: {
     filename: "[name].js",
@@ -38,11 +40,23 @@ module.exports = {
       template: "./src/main.html",
       chunks: ["main"],
     }),
+    new HtmlWebpackPlugin({
+      filename: "allow-access.html",
+      template: "./src/allow-access.html",
+      chunks: ["allow-access"],
+    }),
+    new HtmlWebpackPlugin({
+      filename: "search-feed.html",
+      template: "./src/search-feed.html",
+      chunks: ["search-feed"],
+    }),
     new CopyWebpackPlugin({
       patterns: [
         { from: "public/manifest.json", to: "." },
         { from: "public/icon.png", to: "." },
-        { from: "src/main.css", to: "." }, // ✅ this line
+        { from: "src/main.css", to: "." },
+        { from: "src/allow-access.css", to: "." },
+        { from: "src/search-feed.css", to: "." },
       ],
     }),
   ],

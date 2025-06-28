@@ -2,6 +2,10 @@
   "manifest_version": 3,
   "name": "X Feed Extension",
   "version": "1.0",
+  "description": "X Feed reader extension",
+  "icons": {
+    "48": "icon.png"
+  },
   "action": {
     "default_popup": "main.html",
     "default_icon": "icon.png"
@@ -11,5 +15,15 @@
     "type": "module"
   },
   "permissions": ["storage"],
-  "host_permissions": ["<all_urls>"]
+  "host_permissions": ["<all_urls>"],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "main.css",
+        "search-feed.css",
+        "allow-access.css"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

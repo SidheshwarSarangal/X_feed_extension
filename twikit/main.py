@@ -8,6 +8,10 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from models.session_model import CookieItem, CookieWrapper, SessionModel
 from pydantic import BaseModel
 from fastapi import Body
+import json
+
+from fastapi.middleware.cors import CORSMiddleware
+
 
 
 load_dotenv()
@@ -27,6 +31,14 @@ SESSIONS_DIR = "./sessions"
 os.makedirs(SESSIONS_DIR, exist_ok=True)
 
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+
 @app.on_event("startup")
 async def startup_event():
     try:
@@ -42,7 +54,7 @@ class LoginRequest(BaseModel):
     password: str
 
 
-
+"""
 @app.post("/login")
 async def login_user(body: LoginRequest):
     try:
@@ -89,6 +101,122 @@ async def login_user(body: LoginRequest):
 
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Login failed: {str(e)}")
+
+"""
+
+
+import os
+
+@app.post("/login")
+async def login_user(body: LoginRequest):
+    client = Client("en-US")
+    cookie_path = f"{SESSIONS_DIR}/{body.auth_info_1}.json"
+
+    try:
+        # Perform login
+        await client.login(
+            auth_info_1=body.auth_info_1,
+            auth_info_2=body.auth_info_2,
+            password=body.password,
+            cookies_file=cookie_path
+        )
+
+        # Extract and structure cookies
+        structured_cookies = []
+        for cookie in client.get_cookies():
+            structured_cookies.append({
+                "domain": cookie["domain"],
+                "name": cookie["name"],
+                "value": cookie["value"],
+                "path": cookie.get("path", "/"),
+                "secure": cookie.get("secure", False),
+                "httpOnly": cookie.get("httpOnly", False)
+            })
+
+        wrapped_cookies = {"cookies": structured_cookies}
+
+        # Save to MongoDB
+        await db.sessions.update_one(
+            {"auth_info_1": body.auth_info_1},
+            {"$set": {
+                "auth_info_1": body.auth_info_1,
+                "auth_info_2": body.auth_info_2,
+                "cookies": wrapped_cookies
+            }},
+            upsert=True
+        )
+
+        return {
+            "message": "Login successful, cookies stored in DB.",
+            "cookies": wrapped_cookies
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Login failed: {str(e)}")
+
+    finally:
+        # ✅ Delete session file if it exists
+        if os.path.exists(cookie_path):
+            try:
+                os.remove(cookie_path)
+                print(f"🧹 Deleted session file: {cookie_path}")
+            except Exception as cleanup_error:
+                print(f"⚠️ Failed to delete session file: {cleanup_error}")
+
+
+@app.post("/login-from-file/{username}")
+async def login_from_file(username: str):
+    try:
+        cookie_path = f"./{username}"
+        
+
+        if not os.path.exists(cookie_path):
+            print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+            raise HTTPException(status_code=404, detail="Cookie file not found.")
+
+        with open(cookie_path, "r", encoding="utf-8") as f:
+            raw_cookies = json.load(f)
+
+        # If the file is a raw cookie dict like: {"name": "value", ...}
+        if isinstance(raw_cookies, dict) and "cookies" not in raw_cookies:
+            structured_cookies = [
+                {
+                    "domain": ".twitter.com",
+                    "name": name,
+                    "value": value,
+                    "path": "/",
+                    "secure": False,
+                    "httpOnly": False
+                }
+                for name, value in raw_cookies.items()
+            ]
+        # If it's already structured (like {"cookies": [...]})
+        elif "cookies" in raw_cookies:
+            structured_cookies = raw_cookies["cookies"]
+        else:
+            raise HTTPException(status_code=400, detail="Invalid cookie file format.")
+
+        wrapped_cookies = {"cookies": structured_cookies}
+
+        # Insert into DB
+        await db.sessions.update_one(
+            {"auth_info_1": username},
+            {"$set": {
+                "auth_info_1": username,
+                "auth_info_2": "",  # optional, leave blank or load if stored
+                "cookies": wrapped_cookies
+            }},
+            upsert=True
+        )
+
+        return {
+            "message": f"Cookies from file for '{username}' stored in DB.",
+            "cookies": wrapped_cookies
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read or insert: {str(e)}")
+
 
 
 
@@ -168,8 +296,10 @@ class AuthMatchRequest(BaseModel):
 async def match_sessions(body: AuthMatchRequest = Body(...)):
     try:
         matches_cursor = db.sessions.find({
-            "auth_info_1": body.auth_info_1,
-            "auth_info_2": body.auth_info_2
+            "$or": [
+                {"auth_info_1": body.auth_info_1},
+                {"auth_info_2": body.auth_info_2}
+            ]
         })
 
         matches = []
@@ -184,3 +314,5 @@ async def match_sessions(body: AuthMatchRequest = Body(...)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
