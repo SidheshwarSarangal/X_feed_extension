@@ -18,12 +18,15 @@
   "host_permissions": ["<all_urls>"],
   "web_accessible_resources": [
     {
-      "resources": [
-        "main.css",
-        "search-feed.css",
-        "allow-access.css"
-      ],
+      "resources": ["main.css", "search-feed.css", "allow-access.css"],
       "matches": ["<all_urls>"]
+    }
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://x.com/home*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
     }
   ]
 }

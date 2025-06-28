@@ -8,27 +8,39 @@ document.addEventListener("DOMContentLoaded", () => {
     button.addEventListener("click", search);
   }
 
-  // Click on a user to fetch feed using their cookies
+  // Store clicked user’s cookies in browser storage instead of calling /get-feed
   document.addEventListener("click", async (e) => {
     if (e.target.classList.contains("result-item")) {
       const index = e.target.dataset.index;
       const session = matchedSessions[index];
-
       if (!session || !session.cookies) return;
 
-      try {
-        const res = await fetch("http://localhost:8000/get-feed", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cookies: session.cookies.cookies }),
-        });
+      const username = session.auth_info_1 || session.auth_info_2;
+      const cookieData = {
+        auth_info: username,
+        cookies: session.cookies.cookies, // flattening `cookies.cookies` for consistency
+      };
 
-        const feed = await res.json();
-        console.log("🟢 Feed for:", session.auth_info_1 || session.auth_info_2);
-        console.log(feed);
-      } catch (err) {
-        console.error("❌ Failed to fetch feed:", err);
-      }
+      // Get existing stored users from Chrome local storage
+      chrome.storage.local.get(["userSessions"], (result) => {
+        const existing = result.userSessions || [];
+        // Avoid duplicates
+        const isDuplicate = existing.some((u) => u.auth_info === username);
+        if (!isDuplicate) {
+          existing.push(cookieData);
+          chrome.storage.local.set({ userSessions: existing }, () => {
+            console.log("✅ Stored user in browser:", username);
+            document.getElementById(
+              "saveStatus"
+            ).textContent = `Saved session for "${username}"`;
+          });
+        } else {
+          console.log("ℹ️ User already exists in storage:", username);
+          document.getElementById(
+            "saveStatus"
+          ).textContent = `User already exists in storage:"${username}"`;
+        }
+      });
     }
   });
 });

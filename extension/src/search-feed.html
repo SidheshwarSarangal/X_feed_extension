@@ -1,23 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Search Feed</title>
-  <link rel="stylesheet" href="search-feed.css" />
-</head>
-<body>
-  <a href="main.html" class="back-link">← Back</a>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Search Feed</title>
+    <link rel="stylesheet" href="search-feed.css" />
+  </head>
+  <body>
+    <a href="main.html" class="back-link">← Back</a>
 
-  <div class="container">
-    <h1 class="title">Search Feed Access</h1>
+    <div class="container">
+      <h1 class="title">Search Feed Access</h1>
 
-    <input type="text" id="searchInput" placeholder="Username or Email" />
-    <button id="searchButton">Submit</button>
+      <input type="text" id="searchInput" placeholder="Username or Email" />
+      <button id="searchButton">Submit</button>
 
-    <div id="infoText">Search with userid or username</div>
-    <div id="results" class="results-box scrollable"></div>
-  </div>
+      <div id="infoText">Search with userid or username</div>
 
-  <script src="search-feed.js"></script>
-</body>
+      <!-- Only one results box -->
+      <div id="results" class="results-box scrollable"></div>
+
+      <!-- Save status message goes below -->
+      <div
+        id="saveStatus"
+        style="margin-top: 10px; font-size: 14px; color: lightgreen"
+      ></div>
+    </div>
+
+    <script src="search-feed.js"></script>
+  </body>
 </html>
