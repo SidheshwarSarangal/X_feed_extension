@@ -4,7 +4,7 @@ console.log("📌 content.js injected");
 if (location.hostname === "x.com" && location.pathname === "/home") {
   console.log("✅ Injecting dropdown on X Home");
 
-  // === DROPDOWN CONTAINER ===
+  // === DROPDOWN UI ===
   const container = document.createElement("div");
   container.id = "xfeed-user-dropdown";
   container.style.position = "fixed";
@@ -29,9 +29,10 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
   select.id = "xfeed-dropdown";
   select.innerHTML = `<option value="default">Your Feed</option>`;
   container.appendChild(select);
+
   document.body.appendChild(container);
 
-  // === FETCH USERS FROM STORAGE ===
+  // === POPULATE USERS FROM STORAGE ===
   chrome.storage.local.get(["userSessions"], (result) => {
     const users = result.userSessions || [];
     if (users.length === 0) {
@@ -49,7 +50,7 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
     console.log("✅ Dropdown populated with users:", users.map(u => u.auth_info));
   });
 
-  // === ON DROPDOWN CHANGE ===
+  // === ON USER CHANGE ===
   select.addEventListener("change", async (e) => {
     const selectedIndex = e.target.value;
     if (selectedIndex === "default") {
@@ -74,7 +75,6 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
         console.log("🟢 Feed fetched for:", selectedUser.auth_info);
         console.log(data);
 
-        hideRealFeed();
         renderMockFeed(data);
       } catch (err) {
         console.error("❌ Failed to fetch feed:", err);
@@ -82,21 +82,20 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
     });
   });
 
-  // === FEED RENDER FUNCTION ===
+  // === RENDER FEED INSIDE TWITTER COLUMN ===
   function renderMockFeed(feed) {
-    removeInjectedFeed(); // Clean previous
+    const realFeed = document.querySelector('[data-testid="primaryColumn"]');
+    if (!realFeed) {
+      console.warn("⚠️ Could not find Twitter feed container.");
+      return;
+    }
+
+    realFeed.innerHTML = ""; // clear current tweets
 
     const feedWrapper = document.createElement("div");
     feedWrapper.id = "xfeed-mock-feed";
-    feedWrapper.style.position = "fixed";
-    feedWrapper.style.top = "70px";
-    feedWrapper.style.left = "0";
-    feedWrapper.style.width = "100%";
-    feedWrapper.style.maxHeight = "90vh";
-    feedWrapper.style.overflowY = "auto";
-    feedWrapper.style.padding = "10px 40px";
+    feedWrapper.style.padding = "10px";
     feedWrapper.style.backgroundColor = "#f5f5f5";
-    feedWrapper.style.zIndex = "999999";
     feedWrapper.style.fontFamily = "Arial, sans-serif";
 
     feed.forEach(tweet => {
@@ -114,23 +113,17 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
       feedWrapper.appendChild(tweetDiv);
     });
 
-    document.body.appendChild(feedWrapper);
+    realFeed.appendChild(feedWrapper);
   }
 
-  // === CLEANER ===
+  // === HELPERS ===
   function removeInjectedFeed() {
     const existing = document.getElementById("xfeed-mock-feed");
     if (existing) existing.remove();
   }
 
-  function hideRealFeed() {
-    const realFeed = document.querySelector('[data-testid="primaryColumn"]');
-    if (realFeed) realFeed.style.display = "none";
-  }
-
   function restoreRealFeed() {
-    const realFeed = document.querySelector('[data-testid="primaryColumn"]');
-    if (realFeed) realFeed.style.display = "block";
+    location.reload(); // reloads Twitter's own feed
   }
 
 } else {
