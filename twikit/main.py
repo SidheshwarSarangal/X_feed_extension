@@ -9,6 +9,8 @@ from models.session_model import CookieItem, CookieWrapper, SessionModel
 from pydantic import BaseModel
 from fastapi import Body
 import json
+import httpx
+
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -218,58 +220,66 @@ async def login_from_file(username: str):
         raise HTTPException(status_code=500, detail=f"Failed to read or insert: {str(e)}")
 
 
-
-
 class CookieItem(BaseModel):
-    domain: str
     name: str
     value: str
-    path: str
-    secure: bool
-    httpOnly: bool
 
 class CookieList(BaseModel):
     cookies: List[CookieItem]
 
-def get_media_url(media) -> Optional[str]:
-    """
-    Get the best media URL from a twikit Media object.
-    """
+def is_full_media_url(url: str) -> bool:
+    # Allow only full-size media files (no thumbnails)
+    if not url:
+        return False
+    url = url.lower()
+
+    # Only keep common media types (no *_thumb or profile_*_bigger.jpg etc.)
+    if "thumb" in url or "profile_images" in url or "bigger" in url:
+        return False
+
+    return url.endswith((
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".mov"
+    ))
+
+def extract_valid_media(media_items):
+    media_urls = []
     try:
-        if media.type == "photo":
-            # For photos, return full_url directly
-            return media.full_url
-        elif media.type in ("video", "animated_gif"):
-            video_info = media.video_info or {}
-            variants = video_info.get("variants", [])
-            if variants:
-                # Pick variant with highest bitrate (best quality)
-                variants = sorted(variants, key=lambda v: v.get("bitrate", 0), reverse=True)
-                return variants[0].get("url")
-    except Exception:
-        # Fail silently and return None if any unexpected structure
-        return None
-    return None
+        for item in media_items:
+            if hasattr(item, "media_url_https"):
+                url = item.media_url_https
+                if is_full_media_url(url):
+                    media_urls.append(url)
+            elif hasattr(item, "media_url"):
+                url = item.media_url
+                if is_full_media_url(url):
+                    media_urls.append(url)
+    except Exception as e:
+        print("⚠️ Error in extract_valid_media:", e)
+    return media_urls
 
 @app.post("/get-feed")
 async def get_feed(data: CookieList):
     try:
         client = Client("en-US")
-
-        # Convert list of cookies to dict for twikit client
         cookie_dict = {c.name: c.value for c in data.cookies}
         client.set_cookies(cookie_dict)
 
-        tweets = await client.get_timeline(count=10)
-
+        tweets = await client.get_timeline(count=20)
         result = []
+
         for tweet in tweets:
             media_urls = []
-            if tweet.media:
-                for m in tweet.media:
-                    url = get_media_url(m)
-                    if url:
-                        media_urls.append(url)
+
+            # Check main + retweet + quoted
+            sources = [tweet]
+            if hasattr(tweet, "retweeted_status"):
+                sources.append(tweet.retweeted_status)
+            if hasattr(tweet, "quoted_status"):
+                sources.append(tweet.quoted_status)
+
+            for src in sources:
+                if hasattr(src, "media") and src.media:
+                    media_urls.extend(extract_valid_media(src.media))
 
             result.append({
                 "author": tweet.user.name,
@@ -279,7 +289,7 @@ async def get_feed(data: CookieList):
                 "likes": tweet.favorite_count,
                 "retweets": tweet.retweet_count,
                 "replies": tweet.reply_count,
-                "media": media_urls
+                "media": media_urls,
             })
 
         return result
@@ -287,6 +297,22 @@ async def get_feed(data: CookieList):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch feed: {str(e)}")
 
+@app.get("/proxy-image")
+async def proxy_image(url: str):
+    try:
+        async with httpx.AsyncClient() as client:
+            headers = {
+                "Referer": "https://x.com",
+                "User-Agent": "Mozilla/5.0"
+            }
+            response = await client.get(url, headers=headers)
+            return StreamingResponse(
+                response.aiter_bytes(),
+                media_type=response.headers.get("Content-Type", "image/jpeg")
+            )
+    except Exception as e:
+        print("❌ Proxy image error:", e)
+        raise HTTPException(status_code=500, detail="Image proxy failed")
 
 class AuthMatchRequest(BaseModel):
     auth_info_1: str

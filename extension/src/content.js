@@ -1,6 +1,5 @@
 console.log("📌 content.js injected");
 
-// Only run if on X home
 if (location.hostname === "x.com" && location.pathname === "/home") {
   console.log("✅ Injecting dropdown on X Home");
 
@@ -47,7 +46,7 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
       select.appendChild(option);
     });
 
-    console.log("✅ Dropdown populated with users:", users.map(u => u.auth_info));
+    console.log("✅ Dropdown populated with users:", users.map((u) => u.auth_info));
   });
 
   // === ON USER CHANGE ===
@@ -57,6 +56,19 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
       removeInjectedFeed();
       restoreRealFeed();
       return;
+    }
+
+    const realFeed = document.querySelector('[data-testid="primaryColumn"]');
+    if (realFeed) {
+      realFeed.innerHTML = "";
+      const loadingDiv = document.createElement("div");
+      loadingDiv.style.padding = "50px";
+      loadingDiv.style.fontSize = "20px";
+      loadingDiv.style.fontWeight = "bold";
+      loadingDiv.style.textAlign = "center";
+      loadingDiv.style.backgroundColor = "#fff";
+      loadingDiv.textContent = "Loading...";
+      realFeed.appendChild(loadingDiv);
     }
 
     chrome.storage.local.get(["userSessions"], async (result) => {
@@ -78,54 +90,99 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
         renderMockFeed(data);
       } catch (err) {
         console.error("❌ Failed to fetch feed:", err);
+        if (realFeed) {
+          realFeed.innerHTML = "<div style='padding: 50px; text-align: center; font-weight: bold; color: red;'>Error loading feed.</div>";
+        }
       }
     });
   });
 
-  // === RENDER FEED INSIDE TWITTER COLUMN ===
+  // === RENDER MOCK FEED IN BATCHES ===
   function renderMockFeed(feed) {
     const realFeed = document.querySelector('[data-testid="primaryColumn"]');
-    if (!realFeed) {
-      console.warn("⚠️ Could not find Twitter feed container.");
-      return;
-    }
+    if (!realFeed) return;
 
-    realFeed.innerHTML = ""; // clear current tweets
+    realFeed.innerHTML = "";
 
     const feedWrapper = document.createElement("div");
-    feedWrapper.id = "xfeed-mock-feed";
     feedWrapper.style.padding = "10px";
-    feedWrapper.style.backgroundColor = "#f5f5f5";
     feedWrapper.style.fontFamily = "Arial, sans-serif";
-
-    feed.forEach(tweet => {
-      const tweetDiv = document.createElement("div");
-      tweetDiv.style.border = "1px solid #ccc";
-      tweetDiv.style.background = "#fff";
-      tweetDiv.style.padding = "12px";
-      tweetDiv.style.marginBottom = "10px";
-      tweetDiv.style.borderRadius = "8px";
-      tweetDiv.innerHTML = `
-        <strong>@${tweet.handle}</strong> — <em>${tweet.created_at}</em><br>
-        <p>${tweet.text}</p>
-        <small>❤️ ${tweet.likes} | 🔁 ${tweet.retweets} | 💬 ${tweet.replies}</small>
-      `;
-      feedWrapper.appendChild(tweetDiv);
-    });
-
+    feedWrapper.style.backgroundColor = "#f5f5f5";
+    feedWrapper.id = "xfeed-mock-feed";
     realFeed.appendChild(feedWrapper);
+
+    let index = 0;
+    const batchSize = 10;
+
+    function loadNextBatch() {
+      const fragment = document.createDocumentFragment();
+      const tweets = feed.slice(index, index + batchSize);
+      if (tweets.length === 0) return;
+
+      tweets.forEach((tweet) => {
+        const tweetDiv = document.createElement("div");
+        tweetDiv.style.border = "1px solid #ccc";
+        tweetDiv.style.background = "#fff";
+        tweetDiv.style.padding = "12px";
+        tweetDiv.style.marginBottom = "12px";
+        tweetDiv.style.borderRadius = "12px";
+        tweetDiv.style.overflow = "hidden";
+
+        let mediaHTML = "";
+        if (tweet.media && tweet.media.length > 0) {
+          const imageMedia = tweet.media.filter((url) =>
+            url.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+          );
+
+          if (imageMedia.length > 0) {
+            mediaHTML =
+              `<div style="display: flex; flex-direction: column; gap: 8px; margin: 10px 0;">` +
+              imageMedia
+                .map((url) =>
+                  `<img src="${url}" loading="lazy" style="width: 100%; border-radius: 12px; object-fit: cover;" />`
+                )
+                .join("") +
+              `</div>`;
+          }
+        }
+
+        tweetDiv.innerHTML = `
+          <div style="margin-bottom: 4px;">
+            <strong>@${tweet.handle}</strong> — <em style="color: #555;">${tweet.created_at}</em>
+          </div>
+          ${mediaHTML}
+          <p style="margin: 6px 0;">${tweet.text}</p>
+          <small style="color: #555;">❤️ ${tweet.likes} | 🔁 ${tweet.retweets} | 💬 ${tweet.replies}</small>
+        `;
+
+        fragment.appendChild(tweetDiv);
+      });
+
+      feedWrapper.appendChild(fragment);
+      index += batchSize;
+    }
+
+    // Load initial batch
+    loadNextBatch();
+
+    // Lazy load next batch on scroll
+    window.addEventListener("scroll", () => {
+      const scrollY = window.scrollY + window.innerHeight;
+      const bottom = document.body.scrollHeight - 100;
+      if (scrollY >= bottom) {
+        loadNextBatch();
+      }
+    });
   }
 
-  // === HELPERS ===
   function removeInjectedFeed() {
     const existing = document.getElementById("xfeed-mock-feed");
     if (existing) existing.remove();
   }
 
   function restoreRealFeed() {
-    location.reload(); // reloads Twitter's own feed
+    location.reload();
   }
-
 } else {
   console.log("🚫 Not on X Home, skipping dropdown injection");
 }
