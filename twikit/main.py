@@ -11,7 +11,7 @@ from fastapi import Body
 import json
 import httpx
 from fastapi.middleware.cors import CORSMiddleware
-
+import asyncio
 
 
 load_dotenv()
@@ -53,6 +53,71 @@ class LoginRequest(BaseModel):
     auth_info_1: str
     auth_info_2: str
     password: str
+
+
+"""
+@app.post("/login")
+async def login_user(body: LoginRequest):
+    try:
+        client = Client("en-US")
+        cookie_path = f"{SESSIONS_DIR}/{body.auth_info_1}.json"
+
+        # Step 1: Login and save session to file
+        await client.login(
+            auth_info_1=body.auth_info_1,
+            auth_info_2=body.auth_info_2,
+            password=body.password,
+            cookies_file=cookie_path
+        )
+
+        # Step 2: Read and parse the saved cookie file
+        if not os.path.exists(cookie_path):
+            raise HTTPException(status_code=404, detail="Cookie file not found.")
+
+        with open(cookie_path, "r", encoding="utf-8") as f:
+            raw_cookies = json.load(f)
+
+        # Step 3: Structure cookies
+        if isinstance(raw_cookies, dict) and "cookies" not in raw_cookies:
+            structured_cookies = [
+                {
+                    "domain": ".twitter.com",
+                    "name": name,
+                    "value": value,
+                    "path": "/",
+                    "secure": False,
+                    "httpOnly": False
+                }
+                for name, value in raw_cookies.items()
+            ]
+        elif "cookies" in raw_cookies:
+            structured_cookies = raw_cookies["cookies"]
+        else:
+            raise HTTPException(status_code=400, detail="Invalid cookie file format.")
+
+        wrapped_cookies = {"cookies": structured_cookies}
+
+        # Step 4: Insert cookies into MongoDB
+        await db.sessions.update_one(
+            {"auth_info_1": body.auth_info_1},
+            {"$set": {
+                "auth_info_1": body.auth_info_1,
+                "auth_info_2": body.auth_info_2,
+                "cookies": wrapped_cookies
+            }},
+            upsert=True
+        )
+
+        return {
+            "message": "Login successful, cookies saved to DB.",
+            "cookies": wrapped_cookies
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Login failed: {str(e)}")
+
+"""
+
 
 @app.post("/login")
 async def login_user(body: LoginRequest):
@@ -113,6 +178,15 @@ async def login_user(body: LoginRequest):
 
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Login failed: {str(e)}")
+    
+    finally:
+        if os.path.exists(cookie_path):
+            try:
+                os.remove(cookie_path)
+                print(f"🧹 Deleted session file: {cookie_path}")
+            except Exception as cleanup_error:
+                print(f"⚠️ Could not delete session file: {cleanup_error}")
+
 
 @app.post("/login-from-file/{username}")
 async def login_from_file(username: str):
@@ -205,6 +279,7 @@ def extract_valid_media(media_items):
         print("⚠️ Error in extract_valid_media:", e)
     return media_urls
 
+
 @app.post("/get-feed")
 async def get_feed(data: CookieList):
     try:
@@ -245,6 +320,7 @@ async def get_feed(data: CookieList):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch feed: {str(e)}")
 
+
 @app.get("/proxy-image")
 async def proxy_image(url: str):
     try:
@@ -265,6 +341,7 @@ async def proxy_image(url: str):
 class AuthMatchRequest(BaseModel):
     auth_info_1: str
     auth_info_2: str
+
 
 @app.post("/match-sessions")
 async def match_sessions(body: AuthMatchRequest = Body(...)):

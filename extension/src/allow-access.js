@@ -74,64 +74,63 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 */
 
-
 document.addEventListener("DOMContentLoaded", function () {
-  console.log("🟢 DOM fully loaded");
-
   const submitBtn = document.getElementById("submit-btn");
   const form = document.getElementById("access-form");
   const loadingDiv = document.getElementById("loading");
   const resultDiv = document.getElementById("result");
 
   submitBtn.addEventListener("click", async function () {
-    console.log("📨 Button clicked");
-
     const username = document.getElementById("username")?.value;
     const email = document.getElementById("email")?.value;
     const password = document.getElementById("password")?.value;
 
     if (!username || !email || !password) {
       resultDiv.innerText = "❌ Please fill in all fields.";
-      resultDiv.style.color = "red";
+      resultDiv.style.color = "gray";
       return;
     }
-
-    console.log("🔐 Data:", { username, email, password });
 
     form.style.display = "none";
     loadingDiv.style.display = "block";
     resultDiv.innerText = "";
 
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("timeout")), 40000)
+    );
+
+    const loginPromise = fetch("http://localhost:8000/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        auth_info_1: username,
+        auth_info_2: email,
+        password: password,
+      }),
+    });
+
     try {
-      const res = await fetch("http://localhost:8000/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          auth_info_1: username,
-          auth_info_2: email,
-          password: password,
-        }),
-      });
+      const res = await Promise.race([loginPromise, timeoutPromise]);
 
-      console.log("📬 Awaiting response...");
       const data = await res.json();
-
       loadingDiv.style.display = "none";
 
       if (!res.ok) {
-        console.error("❌ Server error:", data);
-        resultDiv.innerText = `❌ ${data.detail || "Login failed."}`;
-        resultDiv.style.color = "red";
+        resultDiv.innerText = "Wrong username, email or password. Try again later.";
+        resultDiv.style.color = "gray";
       } else {
-        console.log("✅ Login successful:", data);
-        resultDiv.innerText = "✅ You have granted access to see your feed.";
-        resultDiv.style.color = "lightgreen";
+        resultDiv.innerText = "You have granted access to see your feed.";
+        resultDiv.style.color = "green";
       }
     } catch (err) {
-      console.error("❌ Network error:", err);
       loadingDiv.style.display = "none";
-      resultDiv.innerText = `❌ Network error: ${err.message}`;
-      resultDiv.style.color = "red";
+      if (err.message === "timeout") {
+        resultDiv.innerText =
+          "Logout from all sessions through your browser and try again later.";
+      } else {
+        resultDiv.innerText = "Wrong username, email or password. Try again later.";
+      }
+      resultDiv.style.color = "gray";
     }
   });
 });
