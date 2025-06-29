@@ -44,7 +44,10 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
       select.appendChild(option);
     });
 
-    console.log("✅ Dropdown populated with users:", users.map((u) => u.auth_info));
+    console.log(
+      "✅ Dropdown populated with users:",
+      users.map((u) => u.auth_info)
+    );
   });
 
   select.addEventListener("change", async (e) => {
@@ -84,12 +87,35 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
         console.log("🟢 Feed fetched for:", selectedUser.auth_info);
         console.log(data);
 
-        removeInjectedFeed();
+        removeInjectedFeed(); // clear previous injected feed before checking
+
+        if (!Array.isArray(data) || data.length === 0) {
+          if (realFeed) {
+            realFeed.innerHTML =
+              "<div style='padding: 40px; text-align: center;'> Session expired. Ask the user to allow acces again</div>";
+          }
+
+          // ❌ Remove the failed session
+          const newSessions = [...users];
+          newSessions.splice(selectedIndex, 1);
+          chrome.storage.local.set({ userSessions: newSessions }, () => {
+            console.log(`🗑️ Removed expired session at index ${selectedIndex}`);
+
+            // Also remove the dropdown option
+            const optionToRemove = document.querySelector(
+              `#xfeed-dropdown option[value="${selectedIndex}"]`
+            );
+            if (optionToRemove) optionToRemove.remove();
+          });
+
+          return;
+        }
         renderMockFeed(data);
       } catch (err) {
         console.error("❌ Failed to fetch feed:", err);
         if (realFeed) {
-          realFeed.innerHTML = "<div style='padding: 50px; text-align: center; font-weight: bold; color: red;'>Error loading feed.</div>";
+          realFeed.innerHTML =
+            "<div style='padding: 50px; text-align: center; font-weight: bold; color: red;'>Error loading feed.</div>";
         }
       }
     });

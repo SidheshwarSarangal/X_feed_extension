@@ -279,21 +279,21 @@ def extract_valid_media(media_items):
         print("⚠️ Error in extract_valid_media:", e)
     return media_urls
 
-
 @app.post("/get-feed")
 async def get_feed(data: CookieList):
+    result = []  # ✅ Define it here so it's always accessible
     try:
         client = Client("en-US")
         cookie_dict = {c.name: c.value for c in data.cookies}
         client.set_cookies(cookie_dict)
 
+        print("xxxxxxxxxxxx")
+        
         tweets = await client.get_timeline(count=20)
-        result = []
 
         for tweet in tweets:
             media_urls = []
 
-            # Check main + retweet + quoted
             sources = [tweet]
             if hasattr(tweet, "retweeted_status"):
                 sources.append(tweet.retweeted_status)
@@ -318,25 +318,23 @@ async def get_feed(data: CookieList):
         return result
 
     except Exception as e:
+        print("xxxxxxxxxxxx")
+
+        # ✅ Now this check is safe
+        if len(result) == 0:
+            print("yyyyy")
+            query = {
+                "cookies.cookies.0.value": data.cookies[0].value
+            }
+            print(query)
+
+            doc = await db.sessions.find_one(query)
+            if doc:
+                await db.sessions.delete_one({"_id": doc["_id"]})
+                print(f"🗑️ Deleted session due to empty result: {doc.get('auth_info_1')}")
+
         raise HTTPException(status_code=500, detail=f"Failed to fetch feed: {str(e)}")
 
-
-@app.get("/proxy-image")
-async def proxy_image(url: str):
-    try:
-        async with httpx.AsyncClient() as client:
-            headers = {
-                "Referer": "https://x.com",
-                "User-Agent": "Mozilla/5.0"
-            }
-            response = await client.get(url, headers=headers)
-            return StreamingResponse(
-                response.aiter_bytes(),
-                media_type=response.headers.get("Content-Type", "image/jpeg")
-            )
-    except Exception as e:
-        print("❌ Proxy image error:", e)
-        raise HTTPException(status_code=500, detail="Image proxy failed")
 
 class AuthMatchRequest(BaseModel):
     auth_info_1: str
