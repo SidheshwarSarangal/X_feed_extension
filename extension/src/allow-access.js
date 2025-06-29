@@ -74,21 +74,17 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 */
 
+
 document.addEventListener("DOMContentLoaded", function () {
   console.log("🟢 DOM fully loaded");
 
+  const submitBtn = document.getElementById("submit-btn");
   const form = document.getElementById("access-form");
   const loadingDiv = document.getElementById("loading");
   const resultDiv = document.getElementById("result");
 
-  if (!form) {
-    console.error("❌ Form with id 'access-form' not found.");
-    return;
-  }
-
-  form.addEventListener("submit", async function (e) {
-    e.preventDefault();
-    console.log("📨 Form submitted");
+  submitBtn.addEventListener("click", async function () {
+    console.log("📨 Button clicked");
 
     const username = document.getElementById("username")?.value;
     const email = document.getElementById("email")?.value;
@@ -107,7 +103,7 @@ document.addEventListener("DOMContentLoaded", function () {
     resultDiv.innerText = "";
 
     try {
-      const res = await fetch("http://localhost:8080/login", {
+      const res = await fetch("http://localhost:8000/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

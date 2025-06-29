@@ -10,8 +10,6 @@ from pydantic import BaseModel
 from fastapi import Body
 import json
 import httpx
-
-
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -50,19 +48,19 @@ async def startup_event():
     except Exception as e:
         print(f"❌ MongoDB connection failed: {e}")
 
+
 class LoginRequest(BaseModel):
     auth_info_1: str
     auth_info_2: str
     password: str
 
-
-"""
 @app.post("/login")
 async def login_user(body: LoginRequest):
     try:
         client = Client("en-US")
         cookie_path = f"{SESSIONS_DIR}/{body.auth_info_1}.json"
 
+        # Step 1: Login and save session to file
         await client.login(
             auth_info_1=body.auth_info_1,
             auth_info_2=body.auth_info_2,
@@ -70,74 +68,34 @@ async def login_user(body: LoginRequest):
             cookies_file=cookie_path
         )
 
-        # Extract cookies and format
-        structured_cookies = []
-        for cookie in client.cookie_jar:
-            structured_cookies.append({
-                "domain": cookie["domain"],
-                "name": cookie["name"],
-                "value": cookie["value"],
-                "path": cookie.get("path", "/"),
-                "secure": cookie.get("secure", False),
-                "httpOnly": cookie.get("httpOnly", False)
-            })
+        # Step 2: Read and parse the saved cookie file
+        if not os.path.exists(cookie_path):
+            raise HTTPException(status_code=404, detail="Cookie file not found.")
 
-        # Wrap cookies for the model
-        wrapped_cookies = { "cookies": structured_cookies }
+        with open(cookie_path, "r", encoding="utf-8") as f:
+            raw_cookies = json.load(f)
 
-        # Save to MongoDB
-        await db.sessions.update_one(
-            {"auth_info_1": body.auth_info_1},
-            {"$set": {
-                "auth_info_1": body.auth_info_1,
-                "auth_info_2": body.auth_info_2,
-                "cookies": wrapped_cookies
-            }},
-            upsert=True
-        )
-
-        return {
-            "message": "Login successful, cookies stored in DB.",
-            "cookies": wrapped_cookies
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Login failed: {str(e)}")
-
-"""
-
-
-import os
-
-@app.post("/login")
-async def login_user(body: LoginRequest):
-    client = Client("en-US")
-    cookie_path = f"{SESSIONS_DIR}/{body.auth_info_1}.json"
-
-    try:
-        # Perform login
-        await client.login(
-            auth_info_1=body.auth_info_1,
-            auth_info_2=body.auth_info_2,
-            password=body.password,
-            cookies_file=cookie_path
-        )
-
-        # Extract and structure cookies
-        structured_cookies = []
-        for cookie in client.get_cookies():
-            structured_cookies.append({
-                "domain": cookie["domain"],
-                "name": cookie["name"],
-                "value": cookie["value"],
-                "path": cookie.get("path", "/"),
-                "secure": cookie.get("secure", False),
-                "httpOnly": cookie.get("httpOnly", False)
-            })
+        # Step 3: Structure cookies
+        if isinstance(raw_cookies, dict) and "cookies" not in raw_cookies:
+            structured_cookies = [
+                {
+                    "domain": ".twitter.com",
+                    "name": name,
+                    "value": value,
+                    "path": "/",
+                    "secure": False,
+                    "httpOnly": False
+                }
+                for name, value in raw_cookies.items()
+            ]
+        elif "cookies" in raw_cookies:
+            structured_cookies = raw_cookies["cookies"]
+        else:
+            raise HTTPException(status_code=400, detail="Invalid cookie file format.")
 
         wrapped_cookies = {"cookies": structured_cookies}
 
-        # Save to MongoDB
+        # Step 4: Insert cookies into MongoDB
         await db.sessions.update_one(
             {"auth_info_1": body.auth_info_1},
             {"$set": {
@@ -149,22 +107,12 @@ async def login_user(body: LoginRequest):
         )
 
         return {
-            "message": "Login successful, cookies stored in DB.",
+            "message": "Login successful, cookies saved to DB.",
             "cookies": wrapped_cookies
         }
 
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Login failed: {str(e)}")
-
-    finally:
-        # ✅ Delete session file if it exists
-        if os.path.exists(cookie_path):
-            try:
-                os.remove(cookie_path)
-                print(f"🧹 Deleted session file: {cookie_path}")
-            except Exception as cleanup_error:
-                print(f"⚠️ Failed to delete session file: {cleanup_error}")
-
 
 @app.post("/login-from-file/{username}")
 async def login_from_file(username: str):

@@ -3,7 +3,6 @@ console.log("📌 content.js injected");
 if (location.hostname === "x.com" && location.pathname === "/home") {
   console.log("✅ Injecting dropdown on X Home");
 
-  // === DROPDOWN UI ===
   const container = document.createElement("div");
   container.id = "xfeed-user-dropdown";
   container.style.position = "fixed";
@@ -31,7 +30,6 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
 
   document.body.appendChild(container);
 
-  // === POPULATE USERS FROM STORAGE ===
   chrome.storage.local.get(["userSessions"], (result) => {
     const users = result.userSessions || [];
     if (users.length === 0) {
@@ -49,7 +47,6 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
     console.log("✅ Dropdown populated with users:", users.map((u) => u.auth_info));
   });
 
-  // === ON USER CHANGE ===
   select.addEventListener("change", async (e) => {
     const selectedIndex = e.target.value;
     if (selectedIndex === "default") {
@@ -87,6 +84,7 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
         console.log("🟢 Feed fetched for:", selectedUser.auth_info);
         console.log(data);
 
+        removeInjectedFeed();
         renderMockFeed(data);
       } catch (err) {
         console.error("❌ Failed to fetch feed:", err);
@@ -97,7 +95,6 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
     });
   });
 
-  // === RENDER MOCK FEED IN BATCHES ===
   function renderMockFeed(feed) {
     const realFeed = document.querySelector('[data-testid="primaryColumn"]');
     if (!realFeed) return;
@@ -113,8 +110,12 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
 
     let index = 0;
     const batchSize = 10;
+    const maxFeedItems = 30;
+    feed = feed.slice(0, maxFeedItems);
 
     function loadNextBatch() {
+      if (index >= maxFeedItems) return;
+
       const fragment = document.createDocumentFragment();
       const tweets = feed.slice(index, index + batchSize);
       if (tweets.length === 0) return;
@@ -138,8 +139,9 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
             mediaHTML =
               `<div style="display: flex; flex-direction: column; gap: 8px; margin: 10px 0;">` +
               imageMedia
-                .map((url) =>
-                  `<img src="${url}" loading="lazy" style="width: 100%; border-radius: 12px; object-fit: cover;" />`
+                .map(
+                  (url) =>
+                    `<img src="${url}" loading="lazy" decoding="async" style="width: 100%; max-height: 400px; border-radius: 12px; object-fit: cover;" />`
                 )
                 .join("") +
               `</div>`;
@@ -160,19 +162,21 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
 
       feedWrapper.appendChild(fragment);
       index += batchSize;
+
+      while (feedWrapper.children.length > maxFeedItems) {
+        feedWrapper.removeChild(feedWrapper.firstChild);
+      }
     }
 
-    // Load initial batch
     loadNextBatch();
 
-    // Lazy load next batch on scroll
-    window.addEventListener("scroll", () => {
-      const scrollY = window.scrollY + window.innerHeight;
-      const bottom = document.body.scrollHeight - 100;
-      if (scrollY >= bottom) {
-        loadNextBatch();
-      }
+    const sentinel = document.createElement("div");
+    feedWrapper.appendChild(sentinel);
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) loadNextBatch();
     });
+    observer.observe(sentinel);
   }
 
   function removeInjectedFeed() {
