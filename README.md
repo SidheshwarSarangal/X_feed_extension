@@ -11,7 +11,7 @@ The project consists of two parts -
 - Twikit
 - Extension
 
-Note- I have provided the descriptions of each part and the working process together as following-
+Note- I have provided the descriptions of each part and the working process together as following : 
 
 ---
 
