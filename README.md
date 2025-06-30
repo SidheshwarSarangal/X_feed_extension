@@ -4,7 +4,7 @@ This project is done under GDSC @IIT Roorkee. The problem statement was to creat
 - Gamit Krupal
 - Ayan
 ---
-## Description
+## Description :
 The project is a chrome extension which is used to access the token of a user and allows another user to just view his feed. This is done in order to just understand his interests and what all stuff he scrols through. The other user just has to open the extension and fill the email, username and password in the access page there inside the extension. Then our main user just need to search the other user's email or username and click on it in the search page of the extension. After this just go to the home page and on top right there will be a dropdown. Select the other user from that. The page feed will load and the other user's feed will be visible(images, videos, text, likes, number of comments,etc). If the session expires then the other user has to just log out of this web through the browser and then re enter the credentials into the extension for our main user to view his feed. 
 
 The project consists of two parts -
