@@ -57,4 +57,36 @@ The is the frontend which consists of the allow access page, the search page and
 - The first page which opens on clickig the extension button consists og two options - access and search
   1. Access - This allows you to access the access page where you have to provide the email, password and the username to allow others access to view your feed. It uses login component from the twikit.
   2. Search - This allows you to seach a user by entering the username or email. It uses the match-session from the twikit and saves the cookies in the extesion storage.
-- The dropdown only appears in the 
+- The dropdown only appears in the x home feed. You will get the username or email of the other user whose cookeis are saved. Clicking in it will load the feed page and youu will see the feed of the other person. It uses get-feed from the twikit
+
+**In the root, open the terminal and follow these steps:**
+
+  1. **Move to the `extnsion` folder:**
+
+     ```bash
+     cd extension
+     ```
+
+  2. **Run the command to build the extension:**
+
+     ```bash
+     npm run build
+     ```
+
+  3. **Go to the extension in you browser and add the dist folder created after running the build**
+
+
+**The extension will run**
+
+---
+
+## One important functionaity
+
+If the session is expired of the other user, then on running his feed in home will give you message that:
+- The session is expired. Ask the other user to just log out of this session from the browser through https://x.com/settings/sessions and then re-enter the credentials to the access page of the extension.
+Since the session was expired, so on running the feed, the twikit backend will remove those cookies from the database and in the frontend the user will get this message. So re-entering credentials will make it sure that only new cookies are stored in the database.
+Note- It is necessary for the other user to log out of that session or all sessions before re-entering the credentials, otherwise new login will not take place in the extension.
+
+---
+
+This is the complete project
