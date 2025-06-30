@@ -250,23 +250,20 @@ class CookieList(BaseModel):
     cookies: List[CookieItem]
 
 def is_full_media_url(url: str) -> bool:
-    # Allow only full-size media files (no thumbnails)
     if not url:
         return False
     url = url.lower()
-
-    # Only keep common media types (no *_thumb or profile_*_bigger.jpg etc.)
     if "thumb" in url or "profile_images" in url or "bigger" in url:
         return False
-
     return url.endswith((
-        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".mov"
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".mov", ".m4v"
     ))
 
 def extract_valid_media(media_items):
     media_urls = []
     try:
         for item in media_items:
+            # Images
             if hasattr(item, "media_url_https"):
                 url = item.media_url_https
                 if is_full_media_url(url):
@@ -275,9 +272,24 @@ def extract_valid_media(media_items):
                 url = item.media_url
                 if is_full_media_url(url):
                     media_urls.append(url)
+
+            # Videos
+            if hasattr(item, "video_info"):
+                variants = item.video_info.get("variants", [])
+                best_variant = None
+                for variant in variants:
+                    content_type = variant.get("content_type", "")
+                    url = variant.get("url", "")
+                    if "mp4" in content_type and url:
+                        # Prefer highest bitrate if possible
+                        if not best_variant or variant.get("bitrate", 0) > best_variant.get("bitrate", 0):
+                            best_variant = variant
+                if best_variant:
+                    media_urls.append(best_variant["url"])
     except Exception as e:
         print("⚠️ Error in extract_valid_media:", e)
     return media_urls
+
 
 @app.post("/get-feed")
 async def get_feed(data: CookieList):

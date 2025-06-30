@@ -155,33 +155,92 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
         tweetDiv.style.borderRadius = "12px";
         tweetDiv.style.overflow = "hidden";
 
-        let mediaHTML = "";
+        // --- TEXT CONTENT ---
+        const metaDiv = document.createElement("div");
+        metaDiv.style.marginBottom = "4px";
+        metaDiv.innerHTML = `<strong>@${tweet.handle}</strong> — <em style="color: #555;">${tweet.created_at}</em>`;
+        tweetDiv.appendChild(metaDiv);
+
+        // --- MEDIA SECTION ---
         if (tweet.media && tweet.media.length > 0) {
           const imageMedia = tweet.media.filter((url) =>
             url.match(/\.(jpg|jpeg|png|gif|webp)$/i)
           );
+          const videoMedia = tweet.media.filter((url) =>
+            url.match(/\.mp4(\?.*)?$/i)
+          );
 
-          if (imageMedia.length > 0) {
-            mediaHTML =
-              `<div style="display: flex; flex-direction: column; gap: 8px; margin: 10px 0;">` +
-              imageMedia
-                .map(
-                  (url) =>
-                    `<img src="${url}" loading="lazy" decoding="async" style="width: 100%; max-height: 400px; border-radius: 12px; object-fit: cover;" />`
-                )
-                .join("") +
-              `</div>`;
-          }
+          const mediaWrapper = document.createElement("div");
+          mediaWrapper.style.display = "flex";
+          mediaWrapper.style.flexDirection = "column";
+          mediaWrapper.style.gap = "8px";
+          mediaWrapper.style.margin = "10px 0";
+
+          // Images
+          imageMedia.forEach((url) => {
+            const img = document.createElement("img");
+            img.src = url;
+            img.loading = "lazy";
+            img.decoding = "async";
+            img.style.width = "100%";
+            img.style.maxHeight = "400px";
+            img.style.borderRadius = "12px";
+            img.style.objectFit = "cover";
+            mediaWrapper.appendChild(img);
+          });
+
+          // Videos
+          videoMedia.forEach((url) => {
+            const video = document.createElement("video");
+            video.muted = true;
+            video.playsInline = true;
+            video.preload = "metadata";
+            video.controls = true; // Always show native controls
+            video.style.width = "100%";
+            video.style.maxHeight = "400px";
+            video.style.borderRadius = "12px";
+            video.style.display = "block";
+            video.style.outline = "none";
+
+            const source = document.createElement("source");
+            source.src = url;
+            source.type = "video/mp4";
+            video.appendChild(source);
+
+            // 👇 Auto play/pause when in/out of view
+            const observer = new IntersectionObserver(
+              (entries) => {
+                entries.forEach((entry) => {
+                  if (entry.isIntersecting) {
+                    video.play().catch(() => {}); // prevent autoplay block errors
+                  } else {
+                    video.pause();
+                  }
+                });
+              },
+              {
+                threshold: 0.6, // 60% must be visible to trigger
+              }
+            );
+            observer.observe(video);
+
+            mediaWrapper.appendChild(video);
+          });
+
+          tweetDiv.appendChild(mediaWrapper);
         }
 
-        tweetDiv.innerHTML = `
-          <div style="margin-bottom: 4px;">
-            <strong>@${tweet.handle}</strong> — <em style="color: #555;">${tweet.created_at}</em>
-          </div>
-          ${mediaHTML}
-          <p style="margin: 6px 0;">${tweet.text}</p>
-          <small style="color: #555;">❤️ ${tweet.likes} | 🔁 ${tweet.retweets} | 💬 ${tweet.replies}</small>
-        `;
+        // --- TWEET TEXT ---
+        const textP = document.createElement("p");
+        textP.style.margin = "6px 0";
+        textP.textContent = tweet.text;
+        tweetDiv.appendChild(textP);
+
+        // --- METRICS ---
+        const stats = document.createElement("small");
+        stats.style.color = "#555";
+        stats.textContent = `❤️ ${tweet.likes} | 🔁 ${tweet.retweets} | 💬 ${tweet.replies}`;
+        tweetDiv.appendChild(stats);
 
         fragment.appendChild(tweetDiv);
       });
@@ -189,6 +248,7 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
       feedWrapper.appendChild(fragment);
       index += batchSize;
 
+      // Trim extra DOM nodes (older ones) if too many
       while (feedWrapper.children.length > maxFeedItems) {
         feedWrapper.removeChild(feedWrapper.firstChild);
       }
