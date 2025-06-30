@@ -5,18 +5,20 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
 
   const container = document.createElement("div");
   container.id = "xfeed-user-dropdown";
-  container.style.position = "fixed";
-  container.style.top = "10px";
-  container.style.right = "10px";
-  container.style.zIndex = "999999";
-  container.style.backgroundColor = "#fff";
-  container.style.padding = "8px";
-  container.style.borderRadius = "6px";
-  container.style.boxShadow = "0 0 8px rgba(0, 0, 0, 0.2)";
-  container.style.fontSize = "14px";
-  container.style.color = "#000";
-  container.style.fontFamily = "Arial, sans-serif";
-  container.style.border = "2px solid red";
+  Object.assign(container.style, {
+    position: "fixed",
+    top: "10px",
+    right: "10px",
+    zIndex: "999999",
+    backgroundColor: "#fff",
+    padding: "8px",
+    borderRadius: "6px",
+    boxShadow: "0 0 8px rgba(0, 0, 0, 0.2)",
+    fontSize: "14px",
+    color: "#000",
+    fontFamily: "Arial, sans-serif",
+    border: "2px solid red",
+  });
 
   const label = document.createElement("label");
   label.textContent = "👤 Switch Feed: ";
@@ -62,11 +64,13 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
     if (realFeed) {
       realFeed.innerHTML = "";
       const loadingDiv = document.createElement("div");
-      loadingDiv.style.padding = "50px";
-      loadingDiv.style.fontSize = "20px";
-      loadingDiv.style.fontWeight = "bold";
-      loadingDiv.style.textAlign = "center";
-      loadingDiv.style.backgroundColor = "#fff";
+      Object.assign(loadingDiv.style, {
+        padding: "50px",
+        fontSize: "20px",
+        fontWeight: "bold",
+        textAlign: "center",
+        backgroundColor: "#fff",
+      });
       loadingDiv.textContent = "Loading...";
       realFeed.appendChild(loadingDiv);
     }
@@ -87,21 +91,18 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
         console.log("🟢 Feed fetched for:", selectedUser.auth_info);
         console.log(data);
 
-        removeInjectedFeed(); // clear previous injected feed before checking
+        removeInjectedFeed();
 
         if (!Array.isArray(data) || data.length === 0) {
           if (realFeed) {
             realFeed.innerHTML =
-              "<div style='padding: 40px; text-align: center;'> Session expired. Ask the user to allow acces again</div>";
+              "<div style='padding: 40px; text-align: center;'>Session expired. Ask the user to allow access again</div>";
           }
 
-          // ❌ Remove the failed session
           const newSessions = [...users];
           newSessions.splice(selectedIndex, 1);
           chrome.storage.local.set({ userSessions: newSessions }, () => {
             console.log(`🗑️ Removed expired session at index ${selectedIndex}`);
-
-            // Also remove the dropdown option
             const optionToRemove = document.querySelector(
               `#xfeed-dropdown option[value="${selectedIndex}"]`
             );
@@ -110,6 +111,7 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
 
           return;
         }
+
         renderMockFeed(data);
       } catch (err) {
         console.error("❌ Failed to fetch feed:", err);
@@ -128,11 +130,19 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
     realFeed.innerHTML = "";
 
     const feedWrapper = document.createElement("div");
-    feedWrapper.style.padding = "10px";
-    feedWrapper.style.fontFamily = "Arial, sans-serif";
-    feedWrapper.style.backgroundColor = "#f5f5f5";
+    Object.assign(feedWrapper.style, {
+      padding: "10px",
+      fontFamily: "Arial, sans-serif",
+      backgroundColor: "#f5f5f5",
+      transition: "opacity 0.5s ease",
+      opacity: "0",
+    });
     feedWrapper.id = "xfeed-mock-feed";
     realFeed.appendChild(feedWrapper);
+
+    setTimeout(() => {
+      feedWrapper.style.opacity = "1";
+    }, 50); // slight delay for fade-in
 
     let index = 0;
     const batchSize = 10;
@@ -144,24 +154,32 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
 
       const fragment = document.createDocumentFragment();
       const tweets = feed.slice(index, index + batchSize);
-      if (tweets.length === 0) return;
 
       tweets.forEach((tweet) => {
         const tweetDiv = document.createElement("div");
-        tweetDiv.style.border = "1px solid #ccc";
-        tweetDiv.style.background = "#fff";
-        tweetDiv.style.padding = "12px";
-        tweetDiv.style.marginBottom = "12px";
-        tweetDiv.style.borderRadius = "12px";
-        tweetDiv.style.overflow = "hidden";
+        Object.assign(tweetDiv.style, {
+          border: "1px solid #ccc",
+          background: "#fff",
+          padding: "12px",
+          marginBottom: "12px",
+          borderRadius: "12px",
+          overflow: "hidden",
+          opacity: "0",
+          transform: "translateY(20px)",
+          transition: "all 0.4s ease",
+          willChange: "transform, opacity",
+        });
 
-        // --- TEXT CONTENT ---
+        setTimeout(() => {
+          tweetDiv.style.opacity = "1";
+          tweetDiv.style.transform = "translateY(0)";
+        }, 30); // animate each tweet
+
         const metaDiv = document.createElement("div");
-        metaDiv.style.marginBottom = "4px";
         metaDiv.innerHTML = `<strong>@${tweet.handle}</strong> — <em style="color: #555;">${tweet.created_at}</em>`;
+        metaDiv.style.marginBottom = "4px";
         tweetDiv.appendChild(metaDiv);
 
-        // --- MEDIA SECTION ---
         if (tweet.media && tweet.media.length > 0) {
           const imageMedia = tweet.media.filter((url) =>
             url.match(/\.(jpg|jpeg|png|gif|webp)$/i)
@@ -171,58 +189,52 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
           );
 
           const mediaWrapper = document.createElement("div");
-          mediaWrapper.style.display = "flex";
-          mediaWrapper.style.flexDirection = "column";
-          mediaWrapper.style.gap = "8px";
-          mediaWrapper.style.margin = "10px 0";
+          Object.assign(mediaWrapper.style, {
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            margin: "10px 0",
+          });
 
-          // Images
           imageMedia.forEach((url) => {
             const img = document.createElement("img");
-            img.src = url;
+            Object.assign(img.style, {
+              width: "100%",
+              maxHeight: "400px",
+              borderRadius: "12px",
+              objectFit: "cover",
+              transition: "opacity 0.3s ease",
+            });
             img.loading = "lazy";
             img.decoding = "async";
-            img.style.width = "100%";
-            img.style.maxHeight = "400px";
-            img.style.borderRadius = "12px";
-            img.style.objectFit = "cover";
+            img.src = url;
             mediaWrapper.appendChild(img);
           });
 
-          // Videos
           videoMedia.forEach((url) => {
             const video = document.createElement("video");
-            video.muted = true;
+            Object.assign(video.style, {
+              width: "100%",
+              maxHeight: "400px",
+              borderRadius: "12px",
+              display: "block",
+              outline: "none",
+              backgroundColor: "#000",
+            });
+            video.src = url;
+            video.controls = true;
             video.playsInline = true;
-            video.preload = "metadata";
-            video.controls = true; // Always show native controls
-            video.style.width = "100%";
-            video.style.maxHeight = "400px";
-            video.style.borderRadius = "12px";
-            video.style.display = "block";
-            video.style.outline = "none";
 
-            const source = document.createElement("source");
-            source.src = url;
-            source.type = "video/mp4";
-            video.appendChild(source);
+            // 🔇 Start muted and volume at 0.3
+            video.muted = true;
+            video.volume = 0.3;
 
-            // 👇 Auto play/pause when in/out of view
-            const observer = new IntersectionObserver(
-              (entries) => {
-                entries.forEach((entry) => {
-                  if (entry.isIntersecting) {
-                    video.play().catch(() => {}); // prevent autoplay block errors
-                  } else {
-                    video.pause();
-                  }
-                });
-              },
-              {
-                threshold: 0.6, // 60% must be visible to trigger
+            // 🎚️ Detect unmute and reset volume to 30%
+            video.addEventListener("volumechange", () => {
+              if (!video.muted && video.volume > 0.3) {
+                video.volume = 0.3;
               }
-            );
-            observer.observe(video);
+            });
 
             mediaWrapper.appendChild(video);
           });
@@ -230,13 +242,11 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
           tweetDiv.appendChild(mediaWrapper);
         }
 
-        // --- TWEET TEXT ---
         const textP = document.createElement("p");
         textP.style.margin = "6px 0";
         textP.textContent = tweet.text;
         tweetDiv.appendChild(textP);
 
-        // --- METRICS ---
         const stats = document.createElement("small");
         stats.style.color = "#555";
         stats.textContent = `❤️ ${tweet.likes} | 🔁 ${tweet.retweets} | 💬 ${tweet.replies}`;
@@ -248,7 +258,6 @@ if (location.hostname === "x.com" && location.pathname === "/home") {
       feedWrapper.appendChild(fragment);
       index += batchSize;
 
-      // Trim extra DOM nodes (older ones) if too many
       while (feedWrapper.children.length > maxFeedItems) {
         feedWrapper.removeChild(feedWrapper.firstChild);
       }

@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", function () {
       loadingDiv.style.display = "none";
       if (err.message === "timeout") {
         resultDiv.innerText =
-          "Logout from all sessions through your browser and try again later.";
+          "Logout from the web using browser in settings/sessions and try again later.";
       } else {
         resultDiv.innerText = "Wrong username, email or password. Try again later.";
       }
