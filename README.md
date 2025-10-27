@@ -4,7 +4,7 @@ This project is done under GDSC @IIT Roorkee. The problem statement was to creat
 - Ayan
 ---
 ## Working Demo Video
-### View the running of this chrome extension.
+### Watch the demo showcasing the running of this Chrome extension.
 
 [Demo Video link](https://drive.google.com/file/d/1kaC_B0NBTRkO7f37G3d7zcF8YydUI07B/view?usp=sharing)
 ---
@@ -94,6 +94,7 @@ Note- It is necessary for the other user to log out of that session or all sessi
 ---
 
 This is the complete project
+
 
 
 
