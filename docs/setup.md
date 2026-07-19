@@ -1,80 +1,77 @@
 # Setup
 
-[← README](../README.md) · [Architecture](architecture.md) · [Workflows and API](workflows-and-api.md) · [Security](security-and-privacy.md) · [Troubleshooting](troubleshooting.md)
+[← README](../README.md) · [Architecture](architecture.md) · [Workflows](workflows-and-api.md) · [Security](security-and-privacy.md) · [Troubleshooting](troubleshooting.md)
 
-## Before you begin
+> [!CAUTION]
+> Use a test account or explicit informed consent. Keep port 8000 private and local.
 
-Use a dedicated test account whenever possible. If another person's account participates, obtain explicit informed consent and explain that the prototype stores reusable session cookies. Do not expose port 8000 to the public internet.
+## Installation path
 
-## Prerequisites
+```mermaid
+flowchart TD
+    Check{Prerequisites ready?}
+    Check -->|Yes| Env[Create twikit/.env]
+    Check -->|No| Install[Install Python, Node, Chrome, MongoDB]
+    Install --> Env
+    Env --> Python[Create Python environment]
+    Python --> API[Start FastAPI]
+    API --> Build[Build extension]
+    Build --> Load[Load extension/dist]
+    Load --> Verify[Run consented verification]
+```
 
-- Git
-- Python 3.10+
-- Node.js with npm
-- Chrome or another Chromium-based browser
-- MongoDB running locally or a private MongoDB deployment
+## Prerequisite matrix
 
-## Backend setup
+| Tool | Needed for | Quick check |
+| --- | --- | --- |
+| Python 3.10+ | FastAPI/Twikit backend | `python --version` |
+| Node.js + npm | Extension build | `node --version` |
+| MongoDB | Shared sessions | Connection URI available |
+| Chromium browser | Extension runtime | `chrome://extensions` |
+| Test X account | Safe verification | Session revocable |
 
-### 1. Enter the backend directory
+## 1 · Configure data storage
+
+```mermaid
+flowchart LR
+    Env[twikit/.env] --> Variable[MONGODB_URI]
+    Variable --> DB[(twitter_sessions)]
+    DB --> Collection[(sessions)]
+```
+
+```dotenv
+MONGODB_URI=mongodb://127.0.0.1:27017
+```
+
+`*.env` is ignored by Git. Never paste the URI into source, screenshots, or issues.
+
+## 2 · Start the backend
 
 ```bash
 cd twikit
-```
-
-### 2. Create an isolated Python environment
-
-Linux/macOS:
-
-```bash
 python3 -m venv .venv
 source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload
 ```
 
-Windows PowerShell:
+Windows activation:
 
 ```powershell
 py -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
 
-### 3. Install dependencies
+| Expected signal | Meaning |
+| --- | --- |
+| API at `127.0.0.1:8000` | Uvicorn is running |
+| MongoDB success message | Database is reachable |
+| `MONGODB_URI not set` | `.env` missing or wrong working directory |
 
-```bash
-pip install -r requirements.txt
-```
+> [!NOTE]
+> `requirements.txt` is UTF-16. If pip reports a decoding error, convert only its encoding to UTF-8 and retry.
 
-The repository's requirements file is UTF-16 encoded. If a particular pip version cannot read it, convert it to UTF-8 locally before retrying; do not change package names or versions during conversion.
-
-### 4. Configure MongoDB
-
-Create `twikit/.env`:
-
-```dotenv
-MONGODB_URI=mongodb://127.0.0.1:27017
-```
-
-For a remote private database, use its complete connection string. Restrict network access and use a database account with access only to the required database.
-
-### 5. Start the API
-
-```bash
-uvicorn main:app --reload
-```
-
-Expected address:
-
-```text
-http://127.0.0.1:8000
-```
-
-Startup attempts to list MongoDB collections and prints whether that connection succeeded.
-
-## Extension setup
-
-### 1. Install and build
-
-From a second terminal:
+## 3 · Build the extension
 
 ```bash
 cd extension
@@ -82,53 +79,70 @@ npm install
 npm run build
 ```
 
-Webpack writes the unpacked extension to `extension/dist`.
+```mermaid
+flowchart LR
+    Source[src/] --> Build[npm run build]
+    Build --> Dist[dist/]
+    Dist --> Required{manifest.json exists?}
+    Required -->|Yes| Load[Ready to load]
+    Required -->|No| Fix[Inspect Webpack error]
+```
 
-### 2. Load into Chrome
+## 4 · Load into Chrome
 
-1. Open `chrome://extensions`.
-2. Enable **Developer mode**.
-3. Select **Load unpacked**.
-4. Choose the repository's `extension/dist` directory.
-5. Pin **X Feed Extension** if desired.
+```mermaid
+flowchart LR
+    Extensions[chrome://extensions] --> Dev[Developer mode ON]
+    Dev --> Unpacked[Load unpacked]
+    Unpacked --> Dist[Select extension/dist]
+    Dist --> Pin[Optional: pin extension]
+```
 
-After every source change, run `npm run build` again and press the extension's **Reload** button on `chrome://extensions`.
+After a source change:
 
-## Local verification
+```text
+npm run build → chrome://extensions → Reload → refresh x.com/home
+```
 
-Use a test account and verify in this order:
+## 5 · Verification board
 
-1. The API starts without a missing `MONGODB_URI` exception.
-2. MongoDB connection success appears in the API console.
-3. The extension popup displays **Search Feed** and **Allow Access**.
-4. Empty access fields show a validation message.
-5. A consented test account can complete **Allow Access**.
-6. Exact username or email lookup returns the saved account.
-7. Selecting the result displays a saved-session confirmation.
-8. Opening `https://x.com/home` shows the feed selector.
-9. Selecting the test account displays timeline items.
-10. Selecting **Your Feed** restores the standard page by reloading it.
+| # | Check | Pass signal |
+| ---: | --- | --- |
+| 1 | Start API | No environment exception |
+| 2 | Check MongoDB | Connection success logged |
+| 3 | Open popup | Two journey buttons visible |
+| 4 | Submit empty access form | Validation appears |
+| 5 | Authorize test account | Access-granted message |
+| 6 | Search exact identifier | Test user returned |
+| 7 | Select result | Saved-session confirmation |
+| 8 | Open `x.com/home` | Switch Feed selector visible |
+| 9 | Select test user | Timeline cards rendered |
+| 10 | Select Your Feed | X page reloads normally |
 
-## Configuration reference
+## Runtime dependency map
 
-| Setting | Current value/location | Purpose |
-| --- | --- | --- |
-| `MONGODB_URI` | `twikit/.env` | MongoDB connection string |
-| API base URL | Hardcoded as `http://localhost:8000` in extension scripts | FastAPI requests |
-| Database | `twitter_sessions` | Session storage database |
-| Collection | `sessions` | Stored shared sessions |
-| Feed page | `https://x.com/home*` in manifest | Content-script scope |
+```mermaid
+flowchart TD
+    Popup -->|requires| API
+    API -->|requires| Mongo[(MongoDB)]
+    API -->|requires| X[X availability]
+    Home[x.com/home] -->|requires| Content[loaded content script]
+    Content -->|requires| API
 
-## Stopping and cleaning a test run
+    style API fill:#dcfce7,stroke:#16a34a
+    style Mongo fill:#dcfce7,stroke:#16a34a
+```
 
-1. Stop Uvicorn with `Ctrl+C`.
-2. Remove test records from the MongoDB `sessions` collection.
-3. Remove the extension or clear its storage from Chrome's extension details.
-4. Revoke X sessions used during testing from the account's security settings.
-5. Delete any unexpected files under `twikit/sessions`.
+## Cleanup after testing
 
-These steps matter because uninstalling the extension does not delete MongoDB records.
+```mermaid
+flowchart LR
+    Stop[Stop Uvicorn] --> DeleteDB[Delete Mongo session]
+    DeleteDB --> ClearChrome[Clear extension storage]
+    ClearChrome --> Revoke[Revoke X session]
+    Revoke --> Inspect[Inspect twikit/sessions]
 
-## Build limitations
+    style Revoke fill:#fee2e2,stroke:#dc2626
+```
 
-The repository has no automated test script, lint script, development watcher, or continuous-integration workflow. A successful Webpack build confirms bundling only; it does not verify the X integration or the security of the session flow.
+The extension has no automated tests, lint script, watcher, or CI workflow. A Webpack success confirms bundling—not end-to-end behavior or security.

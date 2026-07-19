@@ -1,123 +1,136 @@
 # Troubleshooting
 
-[← README](../README.md) · [Architecture](architecture.md) · [Setup](setup.md) · [Workflows and API](workflows-and-api.md) · [Security](security-and-privacy.md)
+[← README](../README.md) · [Architecture](architecture.md) · [Setup](setup.md) · [Workflows](workflows-and-api.md) · [Security](security-and-privacy.md)
 
-## Backend fails immediately
+## Start here
 
-### `MONGODB_URI not set in environment`
-
-Create `twikit/.env` and start Uvicorn with `twikit` as the working directory:
-
-```dotenv
-MONGODB_URI=mongodb://127.0.0.1:27017
+```mermaid
+flowchart TD
+    Problem{Where does it fail?}
+    Problem -->|API start| Backend[Backend tree]
+    Problem -->|npm / Webpack| Build[Build tree]
+    Problem -->|Popup request| Request[Connection tree]
+    Problem -->|Search| Search[Search tree]
+    Problem -->|X page| Feed[Feed tree]
 ```
 
-### MongoDB connection failure
+## Backend tree
 
-Check that:
+```mermaid
+flowchart TD
+    Start[uvicorn main:app --reload] --> URI{MONGODB_URI found?}
+    URI -->|No| Env[Create twikit/.env<br/>run from twikit/]
+    URI -->|Yes| Mongo{Mongo connects?}
+    Mongo -->|No| Network[Check service, URI, firewall, DNS/TLS]
+    Mongo -->|Yes| Ready[API ready at localhost:8000]
+```
 
-- the MongoDB service is running;
-- the URI includes the correct credentials and host;
-- a hosted MongoDB firewall allows the current machine;
-- DNS and TLS settings match the provider's connection string.
+| Symptom | Check | Fix |
+| --- | --- | --- |
+| `MONGODB_URI not set` | `.env` location | Put it in `twikit/.env` |
+| Mongo connection failure | Service/URI/network | Correct private connection |
+| Pip decoding error | Requirements encoding | Convert UTF-16 → UTF-8 only |
+| Import error | Active virtual environment | Reinstall requirements |
 
-Do not paste a real connection string into issues, logs, or screenshots.
+## Build tree
 
-### Pip cannot parse `requirements.txt`
-
-The tracked requirements file is UTF-16. If pip reports a decoding error, convert only its text encoding to UTF-8 and retry. Preserve the listed dependency versions.
-
-## Extension build problems
-
-### `npm` is not found
-
-Install a supported Node.js release, reopen the terminal, and verify:
+```mermaid
+flowchart TD
+    NPM{npm available?}
+    NPM -->|No| Node[Install Node.js and reopen terminal]
+    NPM -->|Yes| Install[npm install]
+    Install --> Build[npm run build]
+    Build --> Manifest{dist/manifest.json exists?}
+    Manifest -->|No| Logs[Read first Webpack error]
+    Manifest -->|Yes| Load[Load extension/dist]
+```
 
 ```bash
 node --version
 npm --version
-```
-
-### Webpack build fails after dependency changes
-
-Install from the lockfile state:
-
-```bash
 cd extension
 npm install
 npm run build
 ```
 
-The repository does not define test or lint scripts, so `npm run build` is the available project-level check.
+## Request tree
 
-### Chrome says the manifest is missing
+```mermaid
+flowchart TD
+    Error[Popup fetch error / timeout] --> Running{Uvicorn running?}
+    Running -->|No| Start[Start backend]
+    Running -->|Yes| URL{localhost:8000 reachable?}
+    URL -->|No| Firewall[Check loopback firewall/proxy]
+    URL -->|Yes| Logs[Inspect sanitized API logs]
+    Logs --> Mongo{Database healthy?}
+    Mongo -->|No| FixDB[Fix Mongo connection]
+    Mongo -->|Yes| XIssue[Check X challenge/session]
+```
 
-Load `extension/dist`, not the repository root or `extension/src`. Confirm that `dist/manifest.json` exists after the build.
+The UI maps several failures to the same message. A generic credential error does not prove the password is wrong.
 
-## Popup cannot reach the API
+## Search tree
 
-Symptoms include generic login errors, search fetch errors, or long loading followed by timeout.
+```mermaid
+flowchart TD
+    None[No users returned] --> Exact{Exact username/email?}
+    Exact -->|No| Retry[Use exact saved value]
+    Exact -->|Yes| Saved{Allow Access succeeded?}
+    Saved -->|No| Authorize[Repeat consented test flow]
+    Saved -->|Yes| SameDB{Same MongoDB?}
+    SameDB -->|No| Align[Use one MONGODB_URI]
+    SameDB -->|Yes| Inspect[Inspect sessions collection]
+```
 
-Check:
+## X page tree
 
-1. Uvicorn is still running.
-2. It is reachable at `http://localhost:8000`.
-3. The extension was rebuilt after changing any API URL.
-4. Local firewall or proxy software is not blocking loopback requests.
+```mermaid
+flowchart TD
+    Home[Open https://x.com/home] --> Selector{Switch Feed visible?}
+    Selector -->|No| Reload[Reload extension + X tab]
+    Reload --> Scope{Correct URL and site access?}
+    Scope -->|No| FixScope[Open /home; enable extension]
+    Scope -->|Yes| Console[Inspect content-script console]
 
-The current UI maps several different failures to the same generic message, so inspect the FastAPI terminal before assuming the password is wrong. Never share logs containing cookies or credentials.
+    Selector -->|Yes| Users{Saved users listed?}
+    Users -->|No| Search[Select a Search Feed result, reload]
+    Users -->|Yes| Render{Feed renders?}
+    Render -->|No| Session[Check expired/revoked session]
+    Session --> DOM[Check X primaryColumn selector]
+    Render -->|Yes| Done[Working]
+```
 
-## Search returns no users
+## Symptom board
 
-- Search uses exact username or email equality.
-- Confirm the owner completed **Allow Access** successfully.
-- Check the `twitter_sessions.sessions` collection.
-- Make sure the search and login operations use the same MongoDB deployment.
+| Symptom | Most likely boundary |
+| --- | --- |
+| Popup opens, fetch fails | Extension → local API |
+| Search empty | Exact value or Mongo record |
+| Selector absent | Manifest/content-script scope |
+| Selector empty | Chrome `userSessions` storage |
+| Loading never resolves | API/Twikit/X request |
+| Session expired | Revoked or invalid cookies |
+| Blank X column | X DOM selector changed |
+| Images work, video fails | Media URL/format changed |
 
-## Feed selector does not appear
+## Restore and reset
 
-The content script only runs on URLs matching `https://x.com/home*`, and the script additionally checks for hostname `x.com` and pathname `/home`.
+```mermaid
+flowchart LR
+    YourFeed[Choose Your Feed] --> Reload[Page reload]
+    Reset[Full reset] --> Clear[Clear extension storage]
+    Clear --> Delete[Delete Mongo test record]
+    Delete --> Revoke[Revoke X session]
+```
 
-Try:
+Removing the extension clears browser-side state, not MongoDB records.
 
-1. Navigate directly to `https://x.com/home`.
-2. Reload the X tab after installing or reloading the extension.
-3. Check the page console for the content-script injection message.
-4. Confirm the extension is enabled and has site access.
+## Safe bug report card
 
-## Selector appears but no users are listed
-
-Selecting a result on the Search Feed page stores it under `userSessions`. Return to or reload `x.com/home` afterward. If the same identifier was already saved, the extension reports that it already exists rather than adding a duplicate.
-
-## Feed fails to render
-
-Possible causes include:
-
-- expired or revoked X cookies;
-- an X authentication challenge;
-- a Twikit/X compatibility change;
-- the API or MongoDB being unavailable;
-- X changing `[data-testid="primaryColumn"]`;
-- media or timeline response shapes changing.
-
-If a session is expired, revoke it in X security settings and repeat the consented Allow Access flow with a test account. Do not repeatedly submit another person's credentials without their active participation.
-
-## Returning to the normal X feed
-
-Choose **Your Feed** in the injected selector. The implementation restores the original X interface by reloading the page.
-
-## Clearing local extension state
-
-The selected sessions are held in Chrome local extension storage. Use the extension's Chrome details page to clear site/extension data, or remove and reinstall the unpacked extension. This does not delete the corresponding MongoDB records.
-
-## Reporting a problem safely
-
-Include:
-
-- browser and version;
-- Python and Node.js versions;
-- the failing step;
-- sanitized error text;
-- whether the backend and MongoDB are reachable.
-
-Never include passwords, session cookies, `.env` contents, MongoDB URIs, or private feed data.
+| Include | Never include |
+| --- | --- |
+| Browser/version | Password |
+| Python/Node versions | Cookie values |
+| Failing step | `.env` contents |
+| Sanitized error | MongoDB URI |
+| API/Mongo reachability | Private feed data |

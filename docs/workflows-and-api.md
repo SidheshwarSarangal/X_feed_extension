@@ -2,46 +2,142 @@
 
 [← README](../README.md) · [Architecture](architecture.md) · [Setup](setup.md) · [Security](security-and-privacy.md) · [Troubleshooting](troubleshooting.md)
 
-## Account-owner workflow
+## Journey 1 · Allow access
+
+```mermaid
+stateDiagram-v2
+    [*] --> Form
+    Form --> ValidationError: missing field
+    ValidationError --> Form
+    Form --> Loading: username + email + password
+    Loading --> LoginAPI: POST /login
+    LoginAPI --> Granted: Twikit login + Mongo upsert
+    LoginAPI --> Rejected: invalid/challenged/error
+    Granted --> [*]
+    Rejected --> [*]
+```
+
+```mermaid
+sequenceDiagram
+    actor Owner
+    participant Extension
+    participant API
+    participant X
+    participant MongoDB
+
+    Owner->>Extension: Submit account details
+    Extension->>API: POST /login
+    API->>X: Twikit login
+    X-->>API: Session cookies
+    API->>MongoDB: Upsert by username
+    API-->>Extension: Access granted
+    API-->>API: Delete temporary cookie file
+```
+
+> [!WARNING]
+> The password is transient but still crosses the extension/API boundary. Cookies persist in MongoDB.
+
+## Journey 2 · Find a feed
+
+```mermaid
+flowchart LR
+    Input[Exact username or email] --> Match[POST /match-sessions]
+    Match --> Found{Match?}
+    Found -->|No| Empty[No matches]
+    Found -->|Yes| Select[Select result]
+    Select --> Duplicate{Already local?}
+    Duplicate -->|Yes| Existing[Show already exists]
+    Duplicate -->|No| Store[(chrome.storage.local)]
+```
+
+## Journey 3 · Switch feed
 
 ```mermaid
 flowchart TD
-    Open[Open extension] --> Access[Choose Allow Access]
-    Access --> Fields[Enter username, email, password]
-    Fields --> Validate{All fields present?}
-    Validate -->|No| Error[Show validation message]
-    Validate -->|Yes| Login[POST /login]
-    Login --> Twikit[Twikit authenticates]
-    Twikit --> Store[Store session cookies in MongoDB]
-    Store --> Cleanup[Delete temporary cookie file]
-    Cleanup --> Success[Show access granted]
+    Home[x.com/home] --> Dropdown[Switch Feed]
+    Dropdown --> Choice{Selection}
+    Choice -->|Your Feed| Reload[Reload X]
+    Choice -->|Shared user| Loading[Clear primary column + loading]
+    Loading --> Request[POST /get-feed]
+    Request --> Valid{Timeline array?}
+    Valid -->|Yes| Render[Render cards in batches]
+    Valid -->|No / empty| Expired[Show expired message]
+    Expired --> Remove[Remove local session]
 ```
 
-The password is sent to the local backend for the login attempt. It is not written into the MongoDB update in the current code, but it still crosses the extension/API boundary and must be treated as highly sensitive.
-
-## Viewer workflow
+## API map
 
 ```mermaid
-flowchart TD
-    Search[Choose Search Feed] --> Query[Enter exact username or email]
-    Query --> Match[POST /match-sessions]
-    Match --> Found{Matching session?}
-    Found -->|No| Empty[Show no matches]
-    Found -->|Yes| Choose[Select result]
-    Choose --> Local[Save identifiers and cookies in chrome.storage.local]
-    Local --> Home[Open x.com/home]
-    Home --> Switch[Choose user in Switch Feed]
-    Switch --> Feed[POST /get-feed]
-    Feed --> Render[Render normalized timeline]
+flowchart LR
+    Extension --> Login[POST /login]
+    Extension --> Match[POST /match-sessions]
+    Extension --> Feed[POST /get-feed]
+    Dev[Development only] --> File[POST /login-from-file/{username}]
+
+    Login --> Mongo[(MongoDB)]
+    Match --> Mongo
+    Feed --> X[X via Twikit]
+    File --> Mongo
+
+    style Match fill:#fee2e2,stroke:#dc2626
+    style File fill:#fef3c7,stroke:#d97706
 ```
 
-The browser avoids duplicate local records by comparing the displayed `auth_info` value. There is currently no UI for manually removing a saved entry.
+| Endpoint | Takes | Returns | Called by UI? |
+| --- | --- | --- | --- |
+| `POST /login` | Two identifiers + password | Message + cookie wrapper | Yes |
+| `POST /match-sessions` | Search value twice | Matches including cookies | Yes |
+| `POST /get-feed` | Cookie name/value list | Normalized timeline array | Yes |
+| `POST /login-from-file/{username}` | Path parameter | Imported session | No |
 
-## Feed rendering
+## Payload cards
 
-The content script requests 20 timeline items from Twikit, while the renderer allows a maximum of 30. Items are appended in batches of 10 as an intersection-observer sentinel becomes visible.
+### `/login`
 
-Each normalized item can include:
+```json
+{
+  "auth_info_1": "x_username",
+  "auth_info_2": "owner@example.com",
+  "password": "account-password"
+}
+```
+
+```text
+request → Twikit login → normalize cookies → Mongo upsert → temporary-file cleanup
+```
+
+### `/match-sessions`
+
+```json
+{
+  "auth_info_1": "search-value",
+  "auth_info_2": "search-value"
+}
+```
+
+```text
+exact match → auth_info_1 OR auth_info_2 → session identifiers + raw cookies ⚠️
+```
+
+### `/get-feed`
+
+```json
+{
+  "cookies": [
+    { "name": "cookie_name", "value": "sensitive_value" }
+  ]
+}
+```
+
+```mermaid
+flowchart LR
+    Cookies --> Client[Twikit client]
+    Client --> Timeline[Home timeline]
+    Timeline --> Normalize[Normalize fields]
+    Normalize --> JSON[JSON array]
+```
+
+### Normalized timeline item
 
 ```json
 {
@@ -56,95 +152,31 @@ Each normalized item can include:
 }
 ```
 
-Images are lazy-loaded. MP4 videos use browser controls, begin muted, and are limited by the script to 30% volume after unmuting.
+## Rendering pipeline
 
-## API contracts
+```mermaid
+flowchart LR
+    Feed[Timeline array] --> Slice[Maximum 30]
+    Slice --> Batch[Batch 10]
+    Batch --> Cards[Post cards]
+    Cards --> Sentinel[Observer sentinel]
+    Sentinel -->|visible| Batch
 
-The service currently exposes no authentication layer. The examples below describe the code; they are not a recommendation to expose these routes beyond localhost.
-
-### `POST /login`
-
-Creates a Twikit session and upserts it by `auth_info_1`.
-
-Request:
-
-```json
-{
-  "auth_info_1": "x_username",
-  "auth_info_2": "owner@example.com",
-  "password": "account-password"
-}
+    Cards --> Text[Text + stats]
+    Cards --> Images[Lazy images]
+    Cards --> Video[Muted MP4 ≤ 30% volume]
 ```
 
-Successful response includes a message and the cookie wrapper. Login failures return HTTP 401. A temporary JSON file is created under `twikit/sessions` and cleanup is attempted in `finally`.
+## Error matrix
 
-### `POST /match-sessions`
+| Stage | Current UI result | Backend result |
+| --- | --- | --- |
+| Missing field | Fill-all-fields message | No request |
+| Login timeout | Logout/retry message | Request may continue |
+| Login failure | Generic credential message | HTTP 401 |
+| No search match | No matches | Empty array |
+| Search fetch failure | Generic fetch error | HTTP 500/network |
+| Empty feed | Session-expired message | Record may be deleted |
+| Feed failure | Error loading feed | HTTP 500 |
 
-Finds records where either stored identifier exactly equals either submitted value.
-
-Request:
-
-```json
-{
-  "auth_info_1": "search-value",
-  "auth_info_2": "search-value"
-}
-```
-
-Response:
-
-```json
-{
-  "matches": [
-    {
-      "auth_info_1": "x_username",
-      "auth_info_2": "owner@example.com",
-      "cookies": { "cookies": [] }
-    }
-  ]
-}
-```
-
-The route returns cookie material with search results. This is a critical limitation described in [Security and privacy](security-and-privacy.md).
-
-### `POST /get-feed`
-
-Creates a Twikit client from supplied cookie name/value pairs and requests the home timeline.
-
-Request:
-
-```json
-{
-  "cookies": [
-    { "name": "cookie_name", "value": "sensitive_value" }
-  ]
-}
-```
-
-The successful response is an array of normalized feed objects. When an exception occurs before any results are collected, the backend attempts to find and delete the corresponding database record using the first cookie value, then returns HTTP 500.
-
-### `POST /login-from-file/{username}`
-
-Imports cookies from a file resolved relative to the backend's working directory and stores them under the supplied username. This endpoint is development-oriented and is not called by the extension UI.
-
-## Session-expiration behavior
-
-If `/get-feed` produces a non-array or empty response, the content script:
-
-1. Replaces the X primary column with a session-expired message.
-2. Removes the selected entry from Chrome local storage.
-3. Removes its current selector option.
-
-The account owner must deliberately re-authorize a new session. Previously issued X sessions should be revoked through X security settings when they are no longer needed.
-
-## Current error handling
-
-| Location | Behavior |
-| --- | --- |
-| Access page | 40-second timeout and a generic credentials/session message |
-| Search page | No matches or generic fetch error |
-| Feed switcher | Session-expired or loading-error content |
-| Backend login | HTTP 401 containing the underlying error text |
-| Backend lookup/feed | HTTP 500 on unhandled exceptions |
-
-The UI does not currently distinguish API unavailability, MongoDB failure, X challenge responses, revoked cookies, and ordinary invalid credentials with precise user-facing messages.
+The UI intentionally stays simple, so several different backend failures look identical to the user.
