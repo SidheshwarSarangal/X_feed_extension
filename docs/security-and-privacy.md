@@ -16,11 +16,6 @@ flowchart LR
     Mongo -->|cookies in lookup| Viewer[Viewer extension]
     Viewer --> Chrome[(Chrome local storage)]
 
-    style Owner fill:#fef3c7,stroke:#d97706
-    style Popup fill:#fee2e2,stroke:#dc2626
-    style API fill:#fee2e2,stroke:#dc2626
-    style Mongo fill:#fee2e2,stroke:#dc2626
-    style Chrome fill:#fee2e2,stroke:#dc2626
 ```
 
 ## Consent gate
@@ -36,8 +31,6 @@ flowchart TD
     Scope --> Run[Run locally only]
     Run --> Cleanup[Revoke and delete]
 
-    style Stop fill:#fee2e2,stroke:#dc2626
-    style Cleanup fill:#dcfce7,stroke:#16a34a
 ```
 
 Consent to view never grants permission to post, message, follow, or modify the account.
@@ -120,8 +113,6 @@ flowchart LR
     ClearChrome --> DeleteFiles[4 · Delete session JSON]
     DeleteFiles --> Rotate[5 · Rotate exposed DB credentials]
 
-    style RevokeX fill:#fee2e2,stroke:#dc2626
-    style ClearChrome fill:#fef3c7,stroke:#d97706
 ```
 
 Revoking the X session is the key step: it invalidates cookies at their source.

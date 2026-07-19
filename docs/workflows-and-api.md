@@ -79,8 +79,6 @@ flowchart LR
     Feed --> X[X via Twikit]
     File --> Mongo
 
-    style Match fill:#fee2e2,stroke:#dc2626
-    style File fill:#fef3c7,stroke:#d97706
 ```
 
 | Endpoint | Takes | Returns | Called by UI? |

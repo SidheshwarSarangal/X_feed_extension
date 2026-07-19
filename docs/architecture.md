@@ -31,9 +31,6 @@ flowchart LR
     Client --> Temp
     API -. cleanup .-> Temp
 
-    style Browser fill:#eff6ff,stroke:#2563eb
-    style Local fill:#f0fdf4,stroke:#16a34a
-    style Temp fill:#fee2e2,stroke:#dc2626
 ```
 
 ## Component cards
@@ -60,8 +57,6 @@ flowchart TB
     Search --> ChromeStore[(userSessions)]
     ChromeStore --> Content
 
-    style Manifest fill:#f3e8ff,stroke:#9333ea
-    style ChromeStore fill:#fef3c7,stroke:#d97706
 ```
 
 ### Manifest footprint
@@ -119,8 +114,6 @@ flowchart TB
 
     File[POST /login-from-file] --> Import[Development cookie import]
 
-    style Result fill:#fee2e2,stroke:#dc2626
-    style File fill:#fef3c7,stroke:#d97706
 ```
 
 ## Stored shapes

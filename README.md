@@ -12,12 +12,6 @@ flowchart LR
     Viewer([Viewer]) -->|finds shared user| Extension
     Extension -->|renders selected timeline| X[X home page]
 
-    style Owner fill:#fef3c7,stroke:#d97706
-    style Viewer fill:#fef3c7,stroke:#d97706
-    style Extension fill:#dbeafe,stroke:#2563eb
-    style API fill:#dcfce7,stroke:#16a34a
-    style DB fill:#dcfce7,stroke:#16a34a
-    style X fill:#dbeafe,stroke:#2563eb
 ```
 
 > [!CAUTION]
@@ -36,9 +30,6 @@ flowchart TB
     Home --> Select[Choose user from Switch Feed]
     Select --> Feed[Shared timeline replaces primary column]
 
-    style Choice fill:#fef3c7,stroke:#d97706
-    style Share fill:#fee2e2,stroke:#dc2626
-    style Feed fill:#dcfce7,stroke:#16a34a
 ```
 
 ## What is here
@@ -90,9 +81,6 @@ flowchart TB
     Backend --> Models[models/<br/>session schema]
     Root --> Docs[docs/<br/>visual guides]
 
-    style Ext fill:#dbeafe,stroke:#2563eb
-    style Backend fill:#dcfce7,stroke:#16a34a
-    style Docs fill:#f3e8ff,stroke:#9333ea
 ```
 
 ## Stack at a glance
@@ -161,15 +149,11 @@ Then load `extension/dist` from `chrome://extensions` → **Developer mode** →
 
 ```mermaid
 flowchart LR
-    Password[Password<br/>transient input]:::critical --> API[Local API]:::critical
-    API --> Cookies[Session cookies]:::critical
-    Cookies --> Mongo[(MongoDB)]:::store
-    Mongo --> Chrome[(Chrome local storage)]:::store
-    Chrome --> Timeline[Shared feed]:::output
-
-    classDef critical fill:#fee2e2,stroke:#dc2626
-    classDef store fill:#fef3c7,stroke:#d97706
-    classDef output fill:#dcfce7,stroke:#16a34a
+    Password[Password<br/>transient input] --> API[Local API]
+    API --> Cookies[Session cookies]
+    Cookies --> Mongo[(MongoDB)]
+    Mongo --> Chrome[(Chrome local storage)]
+    Chrome --> Timeline[Shared feed]
 ```
 
 Passwords and cookies must never appear in commits, issues, screenshots, or logs. Follow the [cleanup and revocation flow](docs/security-and-privacy.md#revocation-map) after every demonstration.

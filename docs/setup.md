@@ -129,8 +129,6 @@ flowchart TD
     Home[x.com/home] -->|requires| Content[loaded content script]
     Content -->|requires| API
 
-    style API fill:#dcfce7,stroke:#16a34a
-    style Mongo fill:#dcfce7,stroke:#16a34a
 ```
 
 ## Cleanup after testing
@@ -142,7 +140,6 @@ flowchart LR
     ClearChrome --> Revoke[Revoke X session]
     Revoke --> Inspect[Inspect twikit/sessions]
 
-    style Revoke fill:#fee2e2,stroke:#dc2626
 ```
 
 The extension has no automated tests, lint script, watcher, or CI workflow. A Webpack success confirms bundling—not end-to-end behavior or security.
