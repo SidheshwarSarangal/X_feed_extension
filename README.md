@@ -8,31 +8,49 @@ A Chrome extension prototype that lets one person grant another person read-only
 ## Complete flow
 
 ```mermaid
-flowchart LR
-    subgraph Owner[1 · Feed owner]
-        A[Open extension] --> B[Allow Access]
-        B --> C[Enter X username<br/>email + password]
-        C --> D[Submit]
+flowchart TB
+    subgraph Owner[1 · FEED OWNER GRANTS ACCESS]
+        direction TB
+        A[Open extension]
+        B[Choose Allow Access]
+        C[Enter X username,<br/>email, and password]
+        D[Select Submit]
+
+        A --> B --> C --> D
     end
 
-    subgraph System[2 · Extension service]
-        D --> E[Sign in through Twikit]
-        E --> F[(Store reusable X session<br/>in MongoDB)]
+    subgraph System[2 · EXTENSION SERVICE PREPARES ACCESS]
+        direction TB
+        E[Send details to local API]
+        F[Sign in to X through Twikit]
+        G[Create reusable X session cookies]
+        H[(Save owner record and cookies<br/>in MongoDB)]
+
+        E --> F --> G --> H
     end
 
-    subgraph Viewer[3 · Viewer]
-        G[Open extension] --> H[Search Feed]
-        H --> I[Search exact username<br/>or email]
-        I --> J[Click the matching user]
-        J --> K[(Save user session<br/>in Chrome storage)]
-        K --> L[Open or refresh x.com/home]
-        L --> M[Switch Feed menu]
-        M --> N{Choose a feed}
-        N -->|Your Feed| O[Normal X home feed]
-        N -->|Shared user| P[Read-only shared feed]
+    subgraph Viewer[3 · VIEWER ADDS AND OPENS THE SHARED FEED]
+        direction TB
+        I[Open extension]
+        J[Choose Search Feed]
+        K[Search exact owner<br/>username or email]
+        L[Click the matching user]
+        M[(Save owner and session<br/>in Chrome storage)]
+        N[Open or refresh x.com/home]
+        O[Open the top-right<br/>Switch Feed menu]
+        P{Choose a feed}
+        Q[Your Feed:<br/>normal X home timeline]
+        R[Shared user:<br/>read-only shared timeline]
+
+        I --> J --> K --> L --> M --> N --> O --> P
+        P -->|Your Feed| Q
+        P -->|Shared user| R
+        Q -. Switch again .-> P
+        R -. Switch again .-> P
     end
 
-    F --> I
+    D --> E
+    H --> I
 ```
 
 The owner completes **Allow Access**. The viewer completes **Search Feed** and **Switch Feed**. These can be different people using different browser installations, as long as both extensions use the same backend and MongoDB database.
