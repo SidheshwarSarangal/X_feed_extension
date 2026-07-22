@@ -39,7 +39,7 @@ flowchart LR
 | --- | --- | --- |
 | `main.js` | Popup button click | Access or search page |
 | `allow-access.js` | Username, email, password | `/login` request |
-| `search-feed.js` | Exact identifier | Saved Chrome session |
+| `search-feed.js` | Exact username or email, then result click | Saved Chrome session |
 | `content.js` | Selected session | Injected shared feed |
 | `main.py` | API requests | Mongo/Twikit operations |
 | `session_model.py` | Cookie fields | Pydantic session model |
@@ -89,6 +89,8 @@ sequenceDiagram
     end
 ```
 
+The owner list is read from Chrome storage once when `content.js` initializes. If a viewer saves another owner while X Home is open, the page must be refreshed before the new option appears.
+
 | Renderer rule | Value |
 | --- | --- |
 | X selector | `[data-testid="primaryColumn"]` |
@@ -105,7 +107,7 @@ flowchart TB
     TwikitLogin --> Normalize[Normalize cookies]
     Normalize --> Upsert[MongoDB upsert]
 
-    Match[POST /match-sessions] --> Query[Exact identifier query]
+    Match[POST /match-sessions] --> Query[Exact username or email query]
     Query --> Result[Session + cookies]
 
     Get[POST /get-feed] --> Timeline[Twikit timeline]
@@ -156,6 +158,8 @@ flowchart LR
 | Backend → X | Twikit behavior | X/Twikit update |
 | Backend → MongoDB | `MONGODB_URI` | Network/auth failure |
 | Viewer → session | Raw cookie transfer | Expiry/revocation |
+
+The injected cards omit interaction controls, so the shared view is read-only at the UI layer. This does not make the underlying cookie-sharing design a secure read-only authorization boundary.
 
 > [!IMPORTANT]
 > The red-cookie paths are prototype boundaries, not a production delegation architecture. See [Security](security-and-privacy.md).

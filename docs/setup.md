@@ -104,7 +104,9 @@ After a source change:
 npm run build → chrome://extensions → Reload → refresh x.com/home
 ```
 
-## 5 · Verification board
+## 5 · Verify the complete two-person flow
+
+Use two separate Chrome profiles when possible: one to represent the feed owner and one to represent the viewer. Both profiles must use an extension build connected to the same local API and MongoDB database.
 
 | # | Check | Pass signal |
 | ---: | --- | --- |
@@ -112,12 +114,12 @@ npm run build → chrome://extensions → Reload → refresh x.com/home
 | 2 | Check MongoDB | Connection success logged |
 | 3 | Open popup | Two journey buttons visible |
 | 4 | Submit empty access form | Validation appears |
-| 5 | Authorize test account | Access-granted message |
-| 6 | Search exact identifier | Test user returned |
-| 7 | Select result | Saved-session confirmation |
-| 8 | Open `x.com/home` | Switch Feed selector visible |
-| 9 | Select test user | Timeline cards rendered |
-| 10 | Select Your Feed | X page reloads normally |
+| 5 | As owner, enter username + email + password | Access-granted message |
+| 6 | As viewer, search exact username or email | Test user returned |
+| 7 | Click the returned user | Saved-session confirmation |
+| 8 | Open or refresh `x.com/home` | Switch Feed selector lists the saved user |
+| 9 | Select the saved user | Read-only timeline cards replace the main column |
+| 10 | Select Your Feed | X page reloads and the normal feed returns |
 
 ## Runtime dependency map
 

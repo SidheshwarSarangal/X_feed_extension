@@ -124,15 +124,3 @@ passwords ✕ cookie values ✕ MongoDB URIs ✕ private feed content ✕ unreda
 ```
 
 The current content script logs returned feed data in the browser console. Remove or redact that output before using non-test data.
-
-## Repository access model
-
-```mermaid
-flowchart LR
-    History[Git history + contributor credit] --> Preserved[Preserved]
-    Collaborator[Existing collaborator status] --> Preserved
-    Owner[Owner user ID] -->|only bypass actor| AllBranches[(All branches)]
-    Others[All other actors] -->|creation/update/deletion blocked| AllBranches
-```
-
-Attribution and direct branch control are intentionally separate.

@@ -1,182 +1,200 @@
 # X Feed Extension
 
-> A consent-based Chrome extension prototype for viewing a shared X home feed.
+A Chrome extension prototype that lets one person grant another person read-only access to view their X home timeline.
 
-[Demo video](https://drive.google.com/file/d/1kaC_B0NBTRkO7f37G3d7zcF8YydUI07B/view?usp=sharing) · [Setup](docs/setup.md) · [Architecture](docs/architecture.md) · [Security](docs/security-and-privacy.md)
+> [!IMPORTANT]
+> “Shared feed” means the account owner’s **X Home timeline**: the posts X normally shows that account. It does not mean only the posts published by that account.
+
+## Complete flow
 
 ```mermaid
 flowchart LR
-    Owner([Account owner]) -->|voluntarily shares a session| Extension[Chrome extension]
-    Extension --> API[FastAPI + Twikit]
-    API --> DB[(MongoDB)]
-    Viewer([Viewer]) -->|finds shared user| Extension
-    Extension -->|renders selected timeline| X[X home page]
+    subgraph Owner[1 · Feed owner]
+        A[Open extension] --> B[Allow Access]
+        B --> C[Enter X username<br/>email + password]
+        C --> D[Submit]
+    end
 
+    subgraph System[2 · Extension service]
+        D --> E[Sign in through Twikit]
+        E --> F[(Store reusable X session<br/>in MongoDB)]
+    end
+
+    subgraph Viewer[3 · Viewer]
+        G[Open extension] --> H[Search Feed]
+        H --> I[Search exact username<br/>or email]
+        I --> J[Click the matching user]
+        J --> K[(Save user session<br/>in Chrome storage)]
+        K --> L[Open or refresh x.com/home]
+        L --> M[Switch Feed menu]
+        M --> N{Choose a feed}
+        N -->|Your Feed| O[Normal X home feed]
+        N -->|Shared user| P[Read-only shared feed]
+    end
+
+    F --> I
 ```
+
+The owner completes **Allow Access**. The viewer completes **Search Feed** and **Switch Feed**. These can be different people using different browser installations, as long as both extensions use the same backend and MongoDB database.
+
+## What the viewer can do
+
+| Action | Your Feed | Shared Feed |
+| --- | :---: | :---: |
+| Read posts | Yes | Yes |
+| View images and videos | Yes | Yes |
+| See like, repost, and reply counts | Yes | Yes |
+| Like, reply, or repost from the injected view | Yes, through normal X | **No** |
+| Switch to another saved feed | Yes | Yes |
+
+The shared timeline is rendered as custom cards. Those cards contain no like, reply, or repost controls. Selecting **Your Feed** reloads X and restores the normal timeline.
+
+## Use the extension
+
+### 1. Install and open it
+
+Build the extension, load `extension/dist` from `chrome://extensions`, and click the extension icon. The popup shows:
+
+```text
+┌──────────────────────────────┐
+│         Hello X User         │
+│                              │
+│  [ Search Feed ] [Allow Access]
+└──────────────────────────────┘
+```
+
+For local installation commands, see [Setup](docs/setup.md).
+
+### 2. The owner grants access
+
+The account owner chooses **Allow Access**, enters their X username, email, and password, then selects **Submit**.
+
+```text
+Owner input
+    │
+    ├─ username ─┐
+    ├─ email ────┼─> POST /login ─> X login ─> session cookies ─> MongoDB
+    └─ password ─┘
+```
+
+The backend uses the details to create an X session. It stores the resulting session cookies, not the password, in MongoDB. A success message means the saved account can now be found by a viewer.
+
+### 3. The viewer adds the shared user
+
+The viewer opens the extension, chooses **Search Feed**, and searches using the exact username or email entered by the owner.
+
+```mermaid
+sequenceDiagram
+    actor Viewer
+    participant Popup as Extension popup
+    participant API as Local API
+    participant DB as MongoDB
+    participant Chrome as Chrome storage
+
+    Viewer->>Popup: Search exact username or email
+    Popup->>API: POST /match-sessions
+    API->>DB: Find exact match
+    DB-->>Popup: Matching shared user
+    Viewer->>Popup: Click result
+    Popup->>Chrome: Add to userSessions
+```
+
+Searching only displays the match. **Clicking the result is what adds it** to the viewer’s browser. Duplicate users are not added twice.
+
+### 4. Open X Home and switch feeds
+
+Open `https://x.com/home`. A **Switch Feed** control appears at the top-right:
+
+```text
+                                              ┌────────────────────────┐
+                                              │ 👤 Switch Feed:        │
+                                              │ [Your Feed          ▾] │
+                                              │  Your Feed             │
+                                              │  shared_user_1         │
+                                              │  shared_user_2         │
+                                              └────────────────────────┘
+```
+
+- Choose a saved username to replace X’s main timeline column with that user’s shared home feed.
+- Choose **Your Feed** to reload the page and restore the viewer’s own timeline.
+- Repeat the selection at any time to move between saved feeds.
+- If a user was added while X Home was already open, refresh the page to update the menu.
+
+### 5. What happens when a shared feed is selected
+
+```mermaid
+sequenceDiagram
+    actor Viewer
+    participant Page as x.com/home
+    participant Script as content.js
+    participant Store as Chrome storage
+    participant API as POST /get-feed
+    participant X as X via Twikit
+
+    Viewer->>Page: Select shared user
+    Script->>Page: Clear main timeline and show Loading
+    Script->>Store: Read selected user's cookies
+    Script->>API: Send cookies
+    API->>X: Request that session's home timeline
+    X-->>API: Timeline items
+    API-->>Script: Normalized posts and media
+    Script->>Page: Render read-only cards
+```
+
+The backend requests 20 timeline items. The page renderer supports up to 30 and displays them in batches of 10 as the viewer scrolls. Each card can contain post text, author, time, media, and engagement counts.
+
+## Where data is stored
+
+```mermaid
+flowchart LR
+    Password[Password<br/>request only] --> Login[Local FastAPI service]
+    Login --> Cookies[Reusable X session cookies]
+    Cookies --> Mongo[(MongoDB<br/>shared account record)]
+    Mongo --> Search[Search response]
+    Search --> Chrome[(Viewer's<br/>chrome.storage.local)]
+    Chrome --> Feed[Shared-feed request]
+```
+
+| Location | Stored data | Purpose |
+| --- | --- | --- |
+| MongoDB `twitter_sessions.sessions` | Username, email, session cookies | Makes a granted account searchable |
+| Viewer’s `chrome.storage.local` | Selected username and session cookies | Populates the Switch Feed menu |
+| Temporary backend file | Login cookies | Read during login, then deletion is attempted |
+| Source/database | Password | **Not intentionally persisted by this code** |
+
+## Current boundaries
 
 > [!CAUTION]
-> This is a local research prototype. It handles X credentials and reusable session cookies, has no API authentication, and is **not safe for public deployment**. Use test accounts or explicit informed consent only.
+> This is a local prototype, not a production-safe delegation system. It transfers and stores reusable X session cookies, exposes unauthenticated local API endpoints, and uses Twikit rather than an official scoped authorization flow. Use only dedicated test accounts or accounts whose owners have given explicit informed consent.
 
-## The experience
+- The shared view is read-only at the UI level because it renders no interaction buttons.
+- The prototype does not enforce a secure viewer identity or permission scope at the backend.
+- Search is an exact match against the stored username or email; it is not a partial user-directory search.
+- The backend must be running at `http://localhost:8000` whenever access, search, or feed loading is used.
+- An expired or invalid shared session is removed from the viewer’s saved list after a failed/empty feed response. The owner must grant access again.
+- X or Twikit changes can break login, timeline retrieval, or page injection.
 
-```mermaid
-flowchart TB
-    Open[Open extension] --> Choice{Choose a path}
-    Choice -->|Allow Access| Login[Owner enters X details]
-    Login --> Share[Backend stores session cookies]
-    Choice -->|Search Feed| Search[Viewer searches exact user/email]
-    Search --> Save[Session saved in Chrome storage]
-    Save --> Home[Open x.com/home]
-    Home --> Select[Choose user from Switch Feed]
-    Select --> Feed[Shared timeline replaces primary column]
+Read [Security and privacy](docs/security-and-privacy.md) before testing with any account.
 
-```
+## Documentation
 
-## What is here
-
-| Browser extension | Local backend | Feed output |
-| --- | --- | --- |
-| Manifest V3 popup | FastAPI endpoints | Text and timestamps |
-| Allow-access screen | Twikit X client | Images and MP4 video |
-| Shared-user search | MongoDB sessions | Likes, reposts, replies |
-| X page content script | Cookie normalization | Batches of 10, up to 30 |
-| Chrome local storage | Expired-session cleanup | Original-feed restore |
-
-## Documentation map
-
-```mermaid
-flowchart LR
-    Readme[README<br/>project map] --> Architecture[Architecture<br/>components + data]
-    Readme --> Setup[Setup<br/>install + verify]
-    Readme --> Workflows[Workflows & API<br/>requests + states]
-    Readme --> Security[Security<br/>risks + hardening]
-    Readme --> Troubleshooting[Troubleshooting<br/>decision trees]
-
-    click Architecture "docs/architecture.md"
-    click Setup "docs/setup.md"
-    click Workflows "docs/workflows-and-api.md"
-    click Security "docs/security-and-privacy.md"
-    click Troubleshooting "docs/troubleshooting.md"
-```
-
-| Guide | Best place to answer |
+| Guide | Covers |
 | --- | --- |
-| [Architecture](docs/architecture.md) | What talks to what? Where is data stored? |
-| [Setup](docs/setup.md) | How do I run and verify it locally? |
-| [Workflows and API](docs/workflows-and-api.md) | What happens in each user journey and endpoint? |
-| [Security and privacy](docs/security-and-privacy.md) | What is sensitive, unsafe, or required before production? |
-| [Troubleshooting](docs/troubleshooting.md) | Why is a particular step failing? |
+| [Setup](docs/setup.md) | Backend, database, build, Chrome installation, and verification |
+| [Workflow and background processing](docs/workflows-and-api.md) | Every user step and what the system does behind it |
+| [Architecture](docs/architecture.md) | Components, storage, and runtime connections |
+| [Security and privacy](docs/security-and-privacy.md) | Credential/session risks, consent, cleanup, and production gaps |
+| [Troubleshooting](docs/troubleshooting.md) | Failure paths for setup, search, and feed switching |
 
-## Repository shape
+## Technology
 
-```mermaid
-flowchart TB
-    Root[X_feed_extension]
-    Root --> Ext[extension/]
-    Ext --> Public[public/<br/>manifest + icon]
-    Ext --> Source[src/<br/>popup + content + background]
-    Ext --> Dist[dist/<br/>generated Chrome build]
-    Root --> Backend[twikit/]
-    Backend --> Main[main.py<br/>FastAPI routes]
-    Backend --> Models[models/<br/>session schema]
-    Root --> Docs[docs/<br/>visual guides]
-
-```
-
-## Stack at a glance
-
-| Layer | Technology | Role |
-| --- | --- | --- |
-| Extension | Manifest V3, HTML, CSS, JavaScript | Popup and X page integration |
-| Bundling | Webpack 5 + Babel | Produces `extension/dist` |
-| API | Python, FastAPI, Uvicorn | Session and feed orchestration |
-| X client | Twikit | Login and home timeline retrieval |
-| Server data | MongoDB + Motor | Shared-session persistence |
-| Browser data | `chrome.storage.local` | Viewer-selected sessions |
-
-## Implementation snapshot
-
-```mermaid
-pie showData
-    title Prototype capability status
-    "Implemented demo flows" : 7
-    "Security hardening required" : 6
-    "Testing and packaging missing" : 2
-```
-
-| ✅ Implemented | ⚠️ Prototype limitation |
+| Layer | Technology |
 | --- | --- |
-| Popup navigation | No backend authentication |
-| Twikit session creation | Cookies returned by search API |
-| Exact username/email lookup | Cookies stored without app-level encryption |
-| Shared-feed selector | Broad `<all_urls>` host permission |
-| Text, image, video rendering | Hardcoded `localhost:8000` API |
-| Expired local-session removal | No automated test suite |
-| Webpack extension build | X DOM/API changes can break integration |
-
-## Run locally
-
-```mermaid
-flowchart LR
-    Env[1 · Add twikit/.env] --> API[2 · Start Uvicorn]
-    API --> Build[3 · npm run build]
-    Build --> Load[4 · Load extension/dist]
-    Load --> Test[5 · Test with consented account]
-```
-
-```dotenv
-# twikit/.env
-MONGODB_URI=mongodb://127.0.0.1:27017
-```
-
-```bash
-# Terminal 1
-cd twikit
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload
-
-# Terminal 2
-cd extension
-npm install
-npm run build
-```
-
-Then load `extension/dist` from `chrome://extensions` → **Developer mode** → **Load unpacked**. See the [visual setup checklist](docs/setup.md) before entering any account details.
-
-## Data sensitivity
-
-```mermaid
-flowchart LR
-    Password[Password<br/>transient input] --> API[Local API]
-    API --> Cookies[Session cookies]
-    Cookies --> Mongo[(MongoDB)]
-    Mongo --> Chrome[(Chrome local storage)]
-    Chrome --> Timeline[Shared feed]
-```
-
-Passwords and cookies must never appear in commits, issues, screenshots, or logs. Follow the [cleanup and revocation flow](docs/security-and-privacy.md#revocation-map) after every demonstration.
-
-## Contributors and control
-
-| Person/account | Relationship |
-| --- | --- |
-| **Sidheshwar Sarangal** (`SidheshwarSarangal`) | Project owner and maintainer |
-| **Ayan** (`AyanMhd`; `maniac` in Git author metadata) | Contributor |
-| `GDSC-IITR` | Existing repository collaborator |
-
-The Git history remains the authoritative contribution record. An active **Owner-only branch changes** ruleset preserves collaborator status while allowing only `SidheshwarSarangal` to create, update, or delete repository branches.
-
-```mermaid
-flowchart LR
-    Contributor[Contributor] -->|fork / suggestion| Review[Owner review]
-    Collaborator[Existing collaborator] -->|cannot modify protected branches| Review
-    Owner[Repository owner] -->|only bypass actor| Branches[(All branches)]
-```
-
-## Status
-
-**Core demonstration:** present · **Local research use:** possible · **Production use:** not ready
+| Browser extension | Chrome Manifest V3, HTML, CSS, JavaScript |
+| Build | Webpack and Babel |
+| Backend | FastAPI and Uvicorn |
+| X client | Twikit |
+| Shared storage | MongoDB and Motor |
+| Viewer storage | `chrome.storage.local` |
 
 This project is not affiliated with or endorsed by X Corp.
