@@ -4,6 +4,17 @@
 
 The architecture has two runtime halves: a Manifest V3 Chrome extension in the viewer’s browser and a local FastAPI service that connects to MongoDB and X through Twikit.
 
+## Technology stack
+
+| Layer | Technology |
+| --- | --- |
+| Browser extension | Chrome Manifest V3, HTML, CSS, JavaScript |
+| Build | Webpack and Babel |
+| Backend | FastAPI and Uvicorn |
+| X client | Twikit |
+| Shared storage | MongoDB and Motor |
+| Viewer storage | `chrome.storage.local` |
+
 ## Runtime map
 
 ```mermaid

@@ -2,7 +2,10 @@
 
 [← README](../README.md) · [Browser extension](browser-extension.md) · [Backend and API](backend-and-api.md) · [Architecture](architecture.md) · [Security](security-and-privacy.md) · [Setup](setup.md) · [Troubleshooting](troubleshooting.md) · [Boundaries](current-boundaries.md)
 
-This guide follows the feature in the order it is used. For every visible owner or viewer action, it shows where control passes between the extension, FastAPI, Twikit, MongoDB, Chrome storage, and X.
+This project is a Chrome extension prototype that lets one person grant another person read-only access to view their X Home timeline. This guide follows the feature in the order it is used. For every visible owner or viewer action, it shows where control passes between the extension, FastAPI, Twikit, MongoDB, Chrome storage, and X.
+
+> [!IMPORTANT]
+> “Shared Feed” means the account owner’s **X Home timeline**: the posts X normally shows that account. It does not mean only the posts published by that account.
 
 ## Roles and terms
 
@@ -16,6 +19,18 @@ This guide follows the feature in the order it is used. For every visible owner 
 | **Owner record** | Username, email, and wrapped session cookies stored in MongoDB |
 
 One person may act as both owner and viewer during a local demonstration. In the intended journey, they are separate people using extension builds connected to the same backend and MongoDB database.
+
+## Viewer capabilities
+
+| Action | Your Feed | Shared Feed |
+| --- | :---: | :---: |
+| Read posts | Yes | Yes |
+| View images and videos | Yes | Yes |
+| See like, repost, and reply counts | Yes | Yes |
+| Like, reply, or repost from the injected view | Yes, through normal X | **No** |
+| Switch to another saved feed | Yes | Yes |
+
+The shared timeline is rendered as custom cards without like, reply, or repost controls. Selecting **Your Feed** reloads X and restores the normal timeline.
 
 ## Complete journey
 

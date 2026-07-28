@@ -3,7 +3,7 @@
 [← README](../README.md) · [User journey](workflows-and-api.md) · [Browser extension](browser-extension.md) · [Backend and API](backend-and-api.md) · [Architecture](architecture.md) · [Setup](setup.md) · [Troubleshooting](troubleshooting.md) · [Boundaries](current-boundaries.md)
 
 > [!WARNING]
-> Local research prototype only. Do not expose this backend publicly.
+> This is a local research prototype, not a production-safe delegation system. It transfers and stores reusable X session cookies, exposes unauthenticated local API endpoints, and uses Twikit rather than an official scoped authorization flow. Use only dedicated test accounts or accounts whose owners have given explicit informed consent. Do not expose this backend publicly.
 
 ## Trust map
 

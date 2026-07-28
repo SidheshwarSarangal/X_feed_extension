@@ -50,6 +50,14 @@ flowchart TB
 
 When the toolbar popup opens, `main.js` attaches click listeners:
 
+```text
+┌──────────────────────────────────┐
+│           Hello X User           │
+│                                  │
+│  [ Search Feed ] [ Allow Access ]│
+└──────────────────────────────────┘
+```
+
 ```mermaid
 flowchart LR
     Main[main.html] --> Choice{User choice}

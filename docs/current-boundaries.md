@@ -118,3 +118,7 @@ The shared cards do not provide like, reply, repost, follow, or message controls
 | FastAPI, Twikit, MongoDB, endpoints, and media | [Backend and API](backend-and-api.md) |
 | Credential, cookie, consent, and revocation risk | [Security and privacy](security-and-privacy.md) |
 | Failure isolation | [Troubleshooting](troubleshooting.md) |
+
+---
+
+This project is not affiliated with or endorsed by X Corp.
