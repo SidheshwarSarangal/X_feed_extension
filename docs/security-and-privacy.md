@@ -1,6 +1,6 @@
 # Security and privacy
 
-[← README](../README.md) · [Architecture](architecture.md) · [Setup](setup.md) · [Workflows](workflows-and-api.md) · [Troubleshooting](troubleshooting.md)
+[← README](../README.md) · [User journey](workflows-and-api.md) · [Browser extension](browser-extension.md) · [Backend and API](backend-and-api.md) · [Architecture](architecture.md) · [Setup](setup.md) · [Troubleshooting](troubleshooting.md) · [Boundaries](current-boundaries.md)
 
 > [!WARNING]
 > Local research prototype only. Do not expose this backend publicly.
@@ -35,6 +35,16 @@ flowchart TD
 
 Consent to view never grants permission to post, message, follow, or modify the account.
 
+## What “read-only” means here
+
+| Layer | Current behavior | Security meaning |
+| --- | --- | --- |
+| Injected cards | No like, reply, repost, follow, or message controls | Read-only presentation |
+| FastAPI | Accepts reusable cookies and returns timeline data | No scoped viewer authorization |
+| Stored X session | Represents an authenticated owner session | May carry capabilities beyond the injected UI |
+
+The project demonstrates a read-only viewer interface. It does not create a read-only X credential.
+
 ## Risk board
 
 | Severity | Current condition | Why it matters |
@@ -46,6 +56,7 @@ Consent to view never grants permission to post, message, follow, or modify the 
 | 🟠 High | CORS allows all origins | Any origin can attempt API calls |
 | 🟠 High | Manifest uses `<all_urls>` | Permission scope is too broad |
 | 🟠 High | File-import endpoint exists | Unsafe production surface |
+| 🟠 High | Search results use unescaped `innerHTML` | Stored identifier content enters an extension page as markup |
 | 🟡 Operational | Twikit and X DOM can change | Reliability is not controlled |
 
 ## Sensitive-data lifecycle
@@ -70,6 +81,8 @@ stateDiagram-v2
 | Mongo cookies | Until failure/manual deletion | Database cleanup |
 | Chrome cookies | Until expiry/manual clearing | Storage removal/uninstall |
 | X session | Until revoked/expired | X security settings |
+
+The password is not intentionally included in the MongoDB update. Cookie values, however, move from Twikit to a temporary file, MongoDB, the search response, Chrome storage, and the later feed request.
 
 ## Minimum safe-demo boundary
 
@@ -124,3 +137,5 @@ passwords ✕ cookie values ✕ MongoDB URIs ✕ private feed content ✕ unreda
 ```
 
 The current content script logs returned feed data in the browser console. Remove or redact that output before using non-test data.
+
+For the complete list of present implementation limits, separate from this risk-focused guide, read [Current boundaries](current-boundaries.md).

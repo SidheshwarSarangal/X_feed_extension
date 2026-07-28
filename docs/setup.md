@@ -1,6 +1,6 @@
-# Setup
+# Local setup and verification
 
-[← README](../README.md) · [Architecture](architecture.md) · [Workflows](workflows-and-api.md) · [Security](security-and-privacy.md) · [Troubleshooting](troubleshooting.md)
+[← README](../README.md) · [User journey](workflows-and-api.md) · [Browser extension](browser-extension.md) · [Backend and API](backend-and-api.md) · [Architecture](architecture.md) · [Security](security-and-privacy.md) · [Troubleshooting](troubleshooting.md) · [Boundaries](current-boundaries.md)
 
 > [!CAUTION]
 > Use a test account or explicit informed consent. Keep port 8000 private and local.
@@ -45,6 +45,16 @@ MONGODB_URI=mongodb://127.0.0.1:27017
 
 `*.env` is ignored by Git. Never paste the URI into source, screenshots, or issues.
 
+| Setting | Current value or source |
+| --- | --- |
+| Environment file | `twikit/.env` |
+| Required variable | `MONGODB_URI` |
+| Database name | `twitter_sessions` |
+| Collection name | `sessions` |
+| Backend URL in extension | Hardcoded `http://localhost:8000` |
+
+Both extension installations in a two-person demonstration must reach the same FastAPI process and MongoDB database.
+
 ## 2 · Start the backend
 
 ```bash
@@ -67,9 +77,12 @@ py -m venv .venv
 | API at `127.0.0.1:8000` | Uvicorn is running |
 | MongoDB success message | Database is reachable |
 | `MONGODB_URI not set` | `.env` missing or wrong working directory |
+| `/docs` opens | FastAPI generated API reference is available |
 
 > [!NOTE]
 > `requirements.txt` is UTF-16. If pip reports a decoding error, convert only its encoding to UTF-8 and retry.
+
+The backend creates `twikit/sessions/` at startup relative to the working directory. Run Uvicorn from `twikit/` so `.env` and temporary-session paths resolve as documented.
 
 ## 3 · Build the extension
 
@@ -77,6 +90,20 @@ py -m venv .venv
 cd extension
 npm install
 npm run build
+```
+
+The build produces:
+
+```text
+extension/dist/
+├── manifest.json
+├── icon.png
+├── main.html / main.js
+├── allow-access.html / allow-access.js
+├── search-feed.html / search-feed.js
+├── content.js
+├── background.js
+└── copied CSS files
 ```
 
 ```mermaid
@@ -133,15 +160,28 @@ flowchart TD
 
 ```
 
+## Verification boundaries
+
+| If this step fails | Inspect next |
+| --- | --- |
+| Backend does not start | Python environment, requirements encoding, and `.env` |
+| MongoDB message fails | URI, service, firewall, DNS, or TLS |
+| Popup cannot submit | Uvicorn, port 8000, and browser console |
+| Search returns nothing | Exact value, owner record, and shared database |
+| Saved owner does not appear | Click result, inspect `userSessions`, then refresh X Home |
+| Feed does not render | Session validity, backend log, X availability, and DOM selector |
+
 ## Cleanup after testing
 
 ```mermaid
 flowchart LR
-    Stop[Stop Uvicorn] --> DeleteDB[Delete Mongo session]
-    DeleteDB --> ClearChrome[Clear extension storage]
-    ClearChrome --> Revoke[Revoke X session]
-    Revoke --> Inspect[Inspect twikit/sessions]
+    Revoke[1 · Revoke X session] --> DeleteDB[2 · Delete Mongo session]
+    DeleteDB --> ClearChrome[3 · Clear extension storage]
+    ClearChrome --> Inspect[4 · Inspect and delete session JSON]
+    Inspect --> Stop[5 · Stop Uvicorn]
 
 ```
 
 The extension has no automated tests, lint script, watcher, or CI workflow. A Webpack success confirms bundling—not end-to-end behavior or security.
+
+For detailed failure trees, read [Troubleshooting](troubleshooting.md). For the security meaning of cleanup and revocation, read [Security and privacy](security-and-privacy.md).

@@ -81,7 +81,7 @@ Build the extension, load `extension/dist` from `chrome://extensions`, and click
 └──────────────────────────────┘
 ```
 
-For local installation commands, see [Setup](docs/setup.md).
+For local installation commands, see [Setup](docs/setup.md). For popup, manifest, and storage internals, see [Browser extension](docs/browser-extension.md).
 
 ### 2. The owner grants access
 
@@ -95,7 +95,7 @@ Owner input
     └─ password ─┘
 ```
 
-The backend uses the details to create an X session. It stores the resulting session cookies, not the password, in MongoDB. A success message means the saved account can now be found by a viewer.
+The backend uses the details to create an X session. It stores the resulting session cookies, not the password, in MongoDB. A success message means the saved account can now be found by a viewer. The complete backend sequence is documented in [Backend and API](docs/backend-and-api.md).
 
 ### 3. The viewer adds the shared user
 
@@ -192,17 +192,35 @@ flowchart LR
 - An expired or invalid shared session is removed from the viewer’s saved list after a failed/empty feed response. The owner must grant access again.
 - X or Twikit changes can break login, timeline retrieval, or page injection.
 
-Read [Security and privacy](docs/security-and-privacy.md) before testing with any account.
+Read [Security and privacy](docs/security-and-privacy.md) before testing with any account, and use [Current boundaries](docs/current-boundaries.md) to distinguish present behavior from production requirements.
 
 ## Documentation
 
-| Guide | Covers |
+The guides are ordered from the complete owner/viewer journey to implementation details, then operation and safety.
+
+| Order | Guide | Covers |
+| ---: | --- | --- |
+| 1 | [User journey and feature handoffs](docs/workflows-and-api.md) | Complete owner grant, viewer search, save, switch, and restore flow |
+| 2 | [Browser extension](docs/browser-extension.md) | Manifest, popup pages, Chrome storage, content script, and feed renderer |
+| 3 | [Backend and API](docs/backend-and-api.md) | FastAPI, Twikit, MongoDB, endpoints, cookie normalization, and media extraction |
+| 4 | [Architecture](docs/architecture.md) | Runtime layers, component ownership, storage, build, and coupling |
+| 5 | [Security and privacy](docs/security-and-privacy.md) | Consent, credential/session risks, cleanup, revocation, and safe demonstration |
+| 6 | [Setup](docs/setup.md) | Prerequisites, backend, build, Chrome installation, verification, and cleanup |
+| 7 | [Troubleshooting](docs/troubleshooting.md) | Failure trees for backend, build, requests, search, X injection, and reset |
+| 8 | [Current boundaries](docs/current-boundaries.md) | Present limitations and production correction order |
+
+### What belongs where
+
+| Question | Primary guide |
 | --- | --- |
-| [Setup](docs/setup.md) | Backend, database, build, Chrome installation, and verification |
-| [Workflow and background processing](docs/workflows-and-api.md) | Every user step and what the system does behind it |
-| [Architecture](docs/architecture.md) | Components, storage, and runtime connections |
-| [Security and privacy](docs/security-and-privacy.md) | Credential/session risks, consent, cleanup, and production gaps |
-| [Troubleshooting](docs/troubleshooting.md) | Failure paths for setup, search, and feed switching |
+| “What do the owner and viewer do from start to finish?” | User journey |
+| “How do the popup, storage, and X page injection work?” | Browser extension |
+| “How do FastAPI, Twikit, MongoDB, and each endpoint work?” | Backend and API |
+| “Which component owns each connection and record?” | Architecture |
+| “What are the consent, password, and cookie risks?” | Security and privacy |
+| “How do I install and verify the project?” | Setup |
+| “Where did the flow fail?” | Troubleshooting |
+| “What works now, and what must change before production?” | Current boundaries |
 
 ## Technology
 

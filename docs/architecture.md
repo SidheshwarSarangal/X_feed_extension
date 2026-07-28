@@ -1,6 +1,8 @@
 # Architecture
 
-[← README](../README.md) · [Setup](setup.md) · [Workflows](workflows-and-api.md) · [Security](security-and-privacy.md) · [Troubleshooting](troubleshooting.md)
+[← README](../README.md) · [User journey](workflows-and-api.md) · [Browser extension](browser-extension.md) · [Backend and API](backend-and-api.md) · [Security](security-and-privacy.md) · [Setup](setup.md) · [Troubleshooting](troubleshooting.md) · [Boundaries](current-boundaries.md)
+
+The architecture has two runtime halves: a Manifest V3 Chrome extension in the viewer’s browser and a local FastAPI service that connects to MongoDB and X through Twikit.
 
 ## Runtime map
 
@@ -33,6 +35,19 @@ flowchart LR
 
 ```
 
+## Runtime responsibilities
+
+| Layer | Runs where | Owns |
+| --- | --- | --- |
+| Popup pages | Extension popup | Owner access form and viewer search/save flow |
+| Content script | `x.com/home` page context | Switch Feed control, API request, and custom cards |
+| Chrome storage | Viewer browser | Saved owner identifiers and flattened cookies |
+| Service worker | Extension background context | Installation log and action-click handler |
+| FastAPI | Local Python process | Routes, request validation, CORS, and errors |
+| Twikit | Inside backend process | X login, cookie application, and timeline request |
+| Motor/MongoDB | Backend + database | Async owner-session persistence and lookup |
+| X | External platform | Authentication and Home timeline data |
+
 ## Component cards
 
 | Component | Input | Output |
@@ -43,6 +58,8 @@ flowchart LR
 | `content.js` | Selected session | Injected shared feed |
 | `main.py` | API requests | Mongo/Twikit operations |
 | `session_model.py` | Cookie fields | Pydantic session model |
+
+The active route handlers also define request models directly in `main.py`; the imported session models are not used as route bodies.
 
 ## Extension anatomy
 
@@ -138,6 +155,27 @@ erDiagram
     }
 ```
 
+## Data ownership
+
+| Data | Primary location | Purpose |
+| --- | --- | --- |
+| Owner password | Login request only | Authenticate through Twikit |
+| Temporary cookie JSON | `twikit/sessions` during login | Transfer Twikit output into normalization |
+| Owner record | MongoDB `twitter_sessions.sessions` | Make the granted session searchable |
+| Saved owner session | Viewer’s `chrome.storage.local` | Populate Switch Feed and call `/get-feed` |
+| Normalized timeline | API response and page memory | Render the current shared view |
+
+```mermaid
+flowchart LR
+    Password[Owner password] --> API[FastAPI login]
+    API --> Temp[Temporary cookie JSON]
+    Temp --> Mongo[(MongoDB owner record)]
+    Mongo --> Search[Search response]
+    Search --> Chrome[(Viewer Chrome storage)]
+    Chrome --> Feed[Feed request]
+    Feed --> Cards[In-page cards]
+```
+
 ## Build graph
 
 ```mermaid
@@ -158,8 +196,10 @@ flowchart LR
 | Backend → X | Twikit behavior | X/Twikit update |
 | Backend → MongoDB | `MONGODB_URI` | Network/auth failure |
 | Viewer → session | Raw cookie transfer | Expiry/revocation |
+| Login file → Mongo | Temporary filesystem path | Cleanup or file-format failure |
+| Backend cleanup → owner record | First-cookie-value heuristic | Cookie ordering or empty input |
 
 The injected cards omit interaction controls, so the shared view is read-only at the UI layer. This does not make the underlying cookie-sharing design a secure read-only authorization boundary.
 
 > [!IMPORTANT]
-> The red-cookie paths are prototype boundaries, not a production delegation architecture. See [Security](security-and-privacy.md).
+> The raw-cookie paths are prototype boundaries, not a production delegation architecture. See [Security](security-and-privacy.md) and [Current boundaries](current-boundaries.md).

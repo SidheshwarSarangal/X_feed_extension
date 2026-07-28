@@ -1,6 +1,6 @@
 # Troubleshooting
 
-[← README](../README.md) · [Architecture](architecture.md) · [Setup](setup.md) · [Workflows](workflows-and-api.md) · [Security](security-and-privacy.md)
+[← README](../README.md) · [User journey](workflows-and-api.md) · [Browser extension](browser-extension.md) · [Backend and API](backend-and-api.md) · [Architecture](architecture.md) · [Security](security-and-privacy.md) · [Setup](setup.md) · [Boundaries](current-boundaries.md)
 
 ## Start here
 
@@ -110,17 +110,30 @@ flowchart TD
 | Selector empty | Chrome `userSessions` storage |
 | Loading never resolves | API/Twikit/X request |
 | Session expired | Revoked or invalid cookies |
+| Wrong user after an expiry removal | Stale dropdown indexes; refresh X Home |
 | Blank X column | X DOM selector changed |
 | Images work, video fails | Media URL/format changed |
+
+## Endpoint failure map
+
+| Endpoint | Common visible result | Important distinction |
+| --- | --- | --- |
+| `/login` | Generic credential message or timeout | Backend maps file, database, X, and login exceptions to similar failures |
+| `/match-sessions` | No matches or fetch error | Search requires exact stored username/email and the same MongoDB |
+| `/get-feed` | Session expired or Error loading feed | Parsed non-array/empty data removes local entry; network/parse catch does not |
+| `/login-from-file/{username}` | HTTP error | Development endpoint is not part of the extension UI flow |
+
+Read sanitized FastAPI output before concluding that the owner entered incorrect credentials.
 
 ## Restore and reset
 
 ```mermaid
 flowchart LR
     YourFeed[Choose Your Feed] --> Reload[Page reload]
-    Reset[Full reset] --> Clear[Clear extension storage]
-    Clear --> Delete[Delete Mongo test record]
-    Delete --> Revoke[Revoke X session]
+    Reset[Full reset] --> Revoke[Revoke X session]
+    Revoke --> Delete[Delete Mongo test record]
+    Delete --> Clear[Clear extension storage]
+    Clear --> Files[Delete temporary session JSON]
 ```
 
 Removing the extension clears browser-side state, not MongoDB records.
